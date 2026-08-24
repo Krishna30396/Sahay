@@ -1,0 +1,64 @@
+import { FormEvent, useState } from 'react'
+
+type ModalKind = 'steps' | 'info' | 'track' | 'category' | null
+
+const Arrow = () => <span aria-hidden="true">→</span>
+
+function HeroArtwork() {
+  return <div className="hero-art" aria-hidden="true">
+    <div className="cityline"><span>♜</span><span>♜</span><span>♜</span></div>
+    <div className="alert-bubble laptop">₹<i>!</i></div><div className="alert-bubble card-icon">▰<i>!</i></div><div className="alert-bubble otp">OTP<br />••••<i>!</i></div>
+    <div className="people"><div className="person tall"><b></b><i></i></div><div className="person elder"><b></b><i></i></div><div className="person woman"><b></b><i></i></div></div>
+  </div>
+}
+
+function CardIllustration({ type }: { type: 'money' | 'identity' | 'other' }) {
+  if (type === 'money') return <div className="card-art money-art" aria-hidden="true"><span className="phone">UPI<small>₹25,000</small></span><span className="fraudster">●</span><i>!</i></div>
+  if (type === 'identity') return <div className="card-art identity-art" aria-hidden="true"><span className="id-card">●<small>────</small></span><span className="shadow-face">●</span><i>!</i></div>
+  return <div className="card-art other-art" aria-hidden="true"><span className="screen">⚠</span><span className="bubble">✉</span><i>!</i></div>
+}
+
+function Modal({ kind, onClose }: { kind: ModalKind; onClose: () => void }) {
+  const [tracked, setTracked] = useState(false)
+  const submitTrack = (event: FormEvent) => { event.preventDefault(); setTracked(true) }
+  if (!kind) return null
+  const category = kind === 'category'
+  return <div className="modal-backdrop" role="presentation" onMouseDown={onClose}>
+    <section className="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title" onMouseDown={e => e.stopPropagation()}>
+      <button className="close" onClick={onClose} aria-label="Close dialog">×</button>
+      {kind === 'steps' && <><p className="eyebrow">ACT NOW</p><h2 id="modal-title">What should I do first?</h2><ol className="steps"><li><strong>Call 1930.</strong> If money was just transferred, contact the financial-cyber-fraud helpline immediately.</li><li><strong>Contact your bank or payment provider.</strong> Ask about securing the transaction.</li><li><strong>Preserve evidence.</strong> Keep messages, payment references and screenshots.</li><li><strong>Report the incident.</strong> Use this prototype to understand the reporting journey.</li></ol></>}
+      {kind === 'info' && <><p className="eyebrow">HELP</p><h2 id="modal-title">Information to keep</h2><p>Keep the approximate time of the incident, the amount involved, payment references, account or profile details used by the scammer, messages, links, and screenshots.</p><p>This prototype never asks you to submit real financial or identity information.</p></>}
+      {category && <><p className="eyebrow">INFORMATION</p><h2 id="modal-title">This journey is not in the prototype yet</h2><p>Sahay currently demonstrates the financial-fraud reporting journey only. For other cybercrime categories, use the official National Cyber Crime Reporting Portal.</p><a className="button primary" href="https://cybercrime.gov.in" target="_blank" rel="noreferrer">Go to official portal <Arrow /></a></>}
+      {kind === 'track' && <><p className="eyebrow">DEMO TRACKING</p><h2 id="modal-title">Track your report</h2>{!tracked ? <form onSubmit={submitTrack}><label htmlFor="report-id">Enter your demo report ID</label><input id="report-id" defaultValue="NCRP-DEMO-48291" aria-describedby="demo-id" /><p id="demo-id" className="helper">Demo: use NCRP-DEMO-48291</p><button className="button primary" type="submit">Check status <Arrow /></button></form> : <div className="timeline"><div className="done"><b>Report submitted</b><span>23 Aug · 7:18 PM</span></div><div className="current"><b>Under review</b><span>Your demo complaint is awaiting review.</span></div><div><b>Forwarded to relevant authority</b></div><div><b>Further action</b></div></div>}</>}
+    </section>
+  </div>
+}
+
+function App() {
+  const [modal, setModal] = useState<ModalKind>(null)
+  const [menuOpen, setMenuOpen] = useState(false)
+  return <>
+    <header className="site-header"><div className="container header-inner">
+      <a className="brand" href="#top" aria-label="Sahay home"><span className="mark">S</span><span><b>Sahay</b><small>Cyber Fraud Assistance</small></span></a>
+      <button className="menu-button" aria-expanded={menuOpen} aria-controls="main-nav" onClick={() => setMenuOpen(!menuOpen)}>Menu</button>
+      <nav id="main-nav" className={menuOpen ? 'open' : ''} aria-label="Main navigation"><a href="#top">Home</a><a href="#report">Report</a><button onClick={() => setModal('track')}>Track report</button><a href="#help">Help</a><button className="language">English <span aria-hidden="true">⌄</span></button></nav>
+    </div></header>
+    <div className="prototype-banner"><b>● &nbsp; PUBLIC SERVICE PROTOTYPE</b><span>•</span><span>Not an official Government of India website</span></div>
+    <main id="top">
+      <section className="hero container"><div className="hero-copy"><h1>What happened?</h1><p className="lead">We’ll help you take the right next step.</p><span className="orange-rule"></span><p className="intro">If you’ve experienced online financial fraud, account misuse or another cyber incident, start here.</p></div><HeroArtwork />
+        <div className="service-grid" id="report">
+          <article className="service-card featured"><CardIllustration type="money" /><div><h2>I lost money</h2><p>UPI, bank transfer, card, investment or online payment fraud.</p><a href="/report/start">Start report <Arrow /></a></div></article>
+          <article className="service-card identity"><CardIllustration type="identity" /><div><h2>My account or identity was misused</h2><p>Hacked accounts, impersonation or unauthorized access.</p><button onClick={() => setModal('category')}>Get help <Arrow /></button></div></article>
+          <article className="service-card other wide"><CardIllustration type="other" /><div><h2>Something else happened online</h2><p>Harassment, threats, fake profiles or another cyber issue.</p><button onClick={() => setModal('category')}>Find the right service <Arrow /></button></div></article>
+        </div>
+      </section>
+      <section className="emergency"><div className="container emergency-inner"><div><p className="eyebrow">IF MONEY WAS JUST TRANSFERRED</p><h2>Call 1930 immediately.</h2><p>If you have just experienced financial cyber fraud, contact 1930 and your bank or payment provider as soon as possible.</p></div><div className="actions"><a className="button primary" href="tel:1930">Call 1930</a><button className="text-link" onClick={() => setModal('steps')}>What should I do first? <Arrow /></button></div></div></section>
+      <section className="track container"><div><h2>Already reported?</h2><p>Check your report and understand what happens next.</p></div><button className="button secondary" onClick={() => setModal('track')}>Track a report <Arrow /></button></section>
+      <section className="help container" id="help"><h2>Need help?</h2><div className="help-grid"><button onClick={() => setModal('info')}>What information should I keep? <Arrow /></button><button onClick={() => setModal('steps')}>What should I do immediately? <Arrow /></button><button onClick={() => setModal('info')}>What happens to my report? <Arrow /></button></div></section>
+    </main>
+    <footer><div className="container footer-inner"><div><b>Sahay</b><span>Cyber Fraud Assistance</span></div><div className="footer-links"><a href="https://cybercrime.gov.in" target="_blank" rel="noreferrer">National Cyber Crime Reporting Portal</a><a href="tel:1930">1930</a><a href="#help">Help</a><a href="#top">Accessibility</a></div><p>Public Service Prototype<br />This prototype is not an official Government of India service and does not submit real complaints.</p></div></footer>
+    <Modal kind={modal} onClose={() => setModal(null)} />
+  </>
+}
+
+export default App
