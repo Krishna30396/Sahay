@@ -40,7 +40,7 @@ function App() {
     </div></header>
     <div className="prototype-banner"><b>● &nbsp; PUBLIC SERVICE PROTOTYPE</b><span>•</span><span>Not an official Government of India website</span></div>
     <main id="top">
-      <section className="hero container"><div className="hero-copy"><h1>What happened?</h1><p className="lead">We’ll help you take the right next step.</p><span className="orange-rule"></span><p className="intro">If you’ve experienced online financial fraud, account misuse or another cyber incident, start here.</p></div><HeroArtwork />
+      <section className="hero container"><div className="hero-top"><div className="hero-copy"><h1>What happened?</h1><p className="lead">We’ll help you take the right next step.</p><span className="orange-rule"></span><p className="intro">If you’ve experienced online financial fraud, account misuse or another cyber incident, start here.</p></div><HeroArtwork /></div>
         <div className="service-grid" id="report">
           <article className="service-card featured"><CardIllustration type="money" /><div><h2>I lost money</h2><p>UPI, bank transfer, card, investment or online payment fraud.</p><a href="/report/start">Start report <Arrow /></a></div></article>
           <article className="service-card identity"><CardIllustration type="identity" /><div><h2>My account or identity was misused</h2><p>Hacked accounts, impersonation or unauthorized access.</p><button onClick={() => setModal('category')}>Get help <Arrow /></button></div></article>
