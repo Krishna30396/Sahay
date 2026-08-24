@@ -5,17 +5,12 @@ type ModalKind = 'steps' | 'info' | 'track' | 'category' | null
 const Arrow = () => <span aria-hidden="true">→</span>
 
 function HeroArtwork() {
-  return <div className="hero-art" aria-hidden="true">
-    <div className="cityline"><span>♜</span><span>♜</span><span>♜</span></div>
-    <div className="alert-bubble laptop">₹<i>!</i></div><div className="alert-bubble card-icon">▰<i>!</i></div><div className="alert-bubble otp">OTP<br />••••<i>!</i></div>
-    <div className="people"><div className="person tall"><b></b><i></i></div><div className="person elder"><b></b><i></i></div><div className="person woman"><b></b><i></i></div></div>
-  </div>
+  return <div className="hero-art" aria-hidden="true"><img src="/assets/hero-illustration.png" alt="" /></div>
 }
 
 function CardIllustration({ type }: { type: 'money' | 'identity' | 'other' }) {
-  if (type === 'money') return <div className="card-art money-art" aria-hidden="true"><span className="phone">UPI<small>₹25,000</small></span><span className="fraudster">●</span><i>!</i></div>
-  if (type === 'identity') return <div className="card-art identity-art" aria-hidden="true"><span className="id-card">●<small>────</small></span><span className="shadow-face">●</span><i>!</i></div>
-  return <div className="card-art other-art" aria-hidden="true"><span className="screen">⚠</span><span className="bubble">✉</span><i>!</i></div>
+  const images = { money: '/assets/money-fraud.png', identity: '/assets/identity-misuse.png', other: '/assets/other-cyber-issue.png' }
+  return <div className="card-art" aria-hidden="true"><img src={images[type]} alt="" /></div>
 }
 
 function Modal({ kind, onClose }: { kind: ModalKind; onClose: () => void }) {

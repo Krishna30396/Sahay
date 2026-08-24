@@ -1,0 +1,19 @@
+.hero-art{right:-8px;width:57%;height:318px;background:transparent}
+.hero-art img{display:block;width:100%;height:100%;object-fit:contain;object-position:right bottom}
+.card-art{flex:0 0 108px;height:118px;transform:none}
+.card-art img{display:block;width:100%;height:100%;object-fit:contain;object-position:center}
+.card-art:after,.card-art>i{display:none}
+
+@media(max-width:900px){
+  .card-art{flex-basis:82px;height:108px;transform:none}
+}
+
+@media(max-width:768px){
+  .hero-art{position:relative;right:auto;width:100%;height:230px;margin-top:12px}
+  .hero-art img{object-position:center bottom}
+  .card-art{flex-basis:110px;height:116px;transform:none}
+}
+
+@media(max-width:390px){
+  .card-art{flex-basis:92px;height:100px;transform:none}
+}
