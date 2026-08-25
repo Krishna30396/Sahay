@@ -1,10 +1,8 @@
 import { ChangeEvent, useRef, useState } from 'react'
 import { useRouter } from './router'
-import { EvidenceType, useIncident } from './incident'
-import type { EvidenceItem as EvidenceRecord } from './incident'
-import { MISSING_LABELS, ProgressSteps } from './report'
-
-const Arrow = () => <span aria-hidden="true">→</span>
+import { EvidenceType, missingInformationLabel, useReport } from './reportState'
+import type { EvidenceItem as EvidenceRecord } from './reportState'
+import { ProgressSteps, StepActionBar } from './report'
 
 const ALLOWED_MIME = ['image/jpeg', 'image/png', 'application/pdf']
 const MAX_SIZE = 10 * 1024 * 1024
@@ -18,10 +16,10 @@ interface SectionConfig {
 }
 
 const SECTIONS: SectionConfig[] = [
-  { type: 'transaction', title: 'Payment or transaction', description: 'Payment receipt / transaction screenshot. Shows the amount, date and transaction details.', actionLabel: 'Add file', mode: 'file' },
-  { type: 'conversation', title: 'Communication', description: 'WhatsApp, SMS, email or other messages related to the incident.', actionLabel: 'Add file', mode: 'file' },
-  { type: 'contact', title: 'Contact details', description: 'Phone number, UPI ID or account details the person or service used.', actionLabel: 'Add details', mode: 'details' },
-  { type: 'website', title: 'Website / profile', description: 'Link or screenshot of the website, profile or listing involved.', actionLabel: 'Add file', mode: 'file' },
+  { type: 'transaction', title: 'Payment or transaction', description: 'Payment receipt / transaction screenshot.', actionLabel: 'Add file', mode: 'file' },
+  { type: 'conversation', title: 'Communication', description: 'WhatsApp, SMS, email or other messages.', actionLabel: 'Add file', mode: 'file' },
+  { type: 'contact', title: 'Contact details', description: 'Phone number, UPI ID or account details used.', actionLabel: 'Add details', mode: 'details' },
+  { type: 'website', title: 'Website / profile', description: 'Link or screenshot of the site or listing.', actionLabel: 'Add file', mode: 'file' },
   { type: 'other', title: 'Something else', description: 'Add another file or explain what it contains.', actionLabel: 'Add evidence', mode: 'file' },
 ]
 
@@ -77,8 +75,8 @@ function EvidenceItem({ item, onView, onReplace, onRemove }: {
     <div className="evidence-meta">
       <p className="evidence-title">{title}</p>
       <p className="evidence-category">{SECTION_TITLES[item.type]}{item.size ? ` · ${formatSize(item.size)}` : ''}</p>
-      <span className="added-state">✓ Added</span>
     </div>
+    <span className="added-state">✓ Added</span>
     <div className="evidence-actions">
       {item.previewUrl && <button type="button" onClick={onView}>View</button>}
       <button type="button" onClick={onReplace}>Replace</button>
@@ -87,7 +85,7 @@ function EvidenceItem({ item, onView, onReplace, onRemove }: {
   </li>
 }
 
-function EvidenceSection({ section, error, dismissed, onPick, onDismiss, onUndoDismiss, detailsOpen, onOpenDetails, onSaveDetails, onCancelDetails }: {
+function CategoryRow({ section, error, dismissed, onPick, onDismiss, onUndoDismiss, detailsOpen, onOpenDetails, onSaveDetails, onCancelDetails }: {
   section: SectionConfig
   error: string | null
   dismissed: boolean
@@ -100,43 +98,39 @@ function EvidenceSection({ section, error, dismissed, onPick, onDismiss, onUndoD
   onCancelDetails: () => void
 }) {
   const [draft, setDraft] = useState('')
-  return <article className="category-card">
-    <h3>{section.title}</h3>
-    <p>{section.description}</p>
-    {error && <p className="field-error">{error}</p>}
-    {dismissed
-      ? <p className="skipped-note">Marked as not available. <button type="button" className="link-button" onClick={onUndoDismiss}>Add anyway</button></p>
-      : section.mode === 'file'
-        ? <div className="category-actions">
-            <button type="button" className="button secondary" onClick={onPick}>{section.actionLabel}</button>
-            <button type="button" className="link-button" onClick={onDismiss}>I don’t have this information</button>
-          </div>
-        : detailsOpen
-          ? <form className="contact-form" onSubmit={e => { e.preventDefault(); onSaveDetails(draft); setDraft('') }}>
-              <label htmlFor="contact-evidence">Phone number, UPI ID or account details</label>
-              <input id="contact-evidence" value={draft} onChange={e => setDraft(e.target.value)} placeholder="e.g. UPI ID used by the caller" />
-              <div className="category-actions">
-                <button type="submit" className="button secondary" disabled={!draft.trim()}>Save</button>
-                <button type="button" className="link-button" onClick={() => { setDraft(''); onCancelDetails() }}>Cancel</button>
-              </div>
-            </form>
-          : <div className="category-actions">
-              <button type="button" className="button secondary" onClick={onOpenDetails}>{section.actionLabel}</button>
-              <button type="button" className="link-button" onClick={onDismiss}>I don’t have this information</button>
-            </div>}
-  </article>
+  return <div className="category-row">
+    <div className="category-text">
+      <h3>{section.title}</h3>
+      <p>{section.description}</p>
+      {error && <p className="field-error">{error}</p>}
+      {detailsOpen && <form className="contact-form" onSubmit={e => { e.preventDefault(); onSaveDetails(draft); setDraft('') }}>
+        <input value={draft} onChange={e => setDraft(e.target.value)} placeholder="e.g. UPI ID used by the caller" aria-label="Phone number, UPI ID or account details" autoFocus />
+        <div className="category-actions">
+          <button type="submit" className="button secondary" disabled={!draft.trim()}>Save</button>
+          <button type="button" className="link-button" onClick={() => { setDraft(''); onCancelDetails() }}>Cancel</button>
+        </div>
+      </form>}
+    </div>
+    {!detailsOpen && <div className="category-actions">
+      {dismissed
+        ? <p className="skipped-note">Not available. <button type="button" className="link-button" onClick={onUndoDismiss}>Add anyway</button></p>
+        : <>
+            <button type="button" className="button secondary" onClick={section.mode === 'file' ? onPick : onOpenDetails}>{section.actionLabel}</button>
+            <button type="button" className="link-button" onClick={onDismiss}>Don’t have this</button>
+          </>}
+    </div>}
+  </div>
 }
 
 export function ReportEvidence() {
   const { navigate } = useRouter()
-  const { incident, setIncident } = useIncident()
+  const { report, setReport } = useReport()
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [uploadingSection, setUploadingSection] = useState<EvidenceType | null>(null)
   const [pending, setPending] = useState<PendingUpload | null>(null)
   const [errors, setErrors] = useState<Partial<Record<EvidenceType, string>>>({})
   const [dismissed, setDismissed] = useState<Set<EvidenceType>>(new Set())
   const [openDetailsFor, setOpenDetailsFor] = useState<EvidenceType | null>(null)
-  const [continued, setContinued] = useState(false)
 
   const pickFile = (type: EvidenceType) => {
     setUploadingSection(type)
@@ -180,7 +174,7 @@ export function ReportEvidence() {
       source: 'ai-suggested',
       confirmed: true,
     }
-    setIncident(current => ({ ...current, evidenceItems: [...current.evidenceItems, item] }))
+    setReport(current => ({ ...current, evidence: [...current.evidence, item] }))
     dismissed.delete(pending.selectedType)
     setDismissed(new Set(dismissed))
     setPending(null)
@@ -193,13 +187,13 @@ export function ReportEvidence() {
 
   const saveDetails = (type: EvidenceType, text: string) => {
     const item: EvidenceRecord = { id: makeId(), type, description: text.trim(), source: 'user', confirmed: true }
-    setIncident(current => ({ ...current, evidenceItems: [...current.evidenceItems, item] }))
+    setReport(current => ({ ...current, evidence: [...current.evidence, item] }))
     setOpenDetailsFor(null)
   }
 
   const removeItem = (item: EvidenceRecord) => {
     if (item.previewUrl) URL.revokeObjectURL(item.previewUrl)
-    setIncident(current => ({ ...current, evidenceItems: current.evidenceItems.filter(i => i.id !== item.id) }))
+    setReport(current => ({ ...current, evidence: current.evidence.filter(i => i.id !== item.id) }))
   }
 
   const viewItem = (item: EvidenceRecord) => {
@@ -213,36 +207,27 @@ export function ReportEvidence() {
     else pickFile(item.type)
   }
 
-  const missingNotes: string[] = []
-  incident.missingInformation.forEach(key => missingNotes.push(`We couldn’t detect the ${MISSING_LABELS[key] ?? key}.`))
-  if (!incident.transactionId) missingNotes.push('Transaction ID hasn’t been added.')
-
-  return <main className="report-page container">
+  return <main className="report-page">
     <ProgressSteps current="Evidence" />
     <div className="report-intro">
       <h1>Add evidence</h1>
-      <p className="lead">Add anything that can help explain what happened.</p>
-      <p className="reassurance">Screenshots, payment confirmations, messages and other information can help. You don’t need to have everything.</p>
+      <p className="lead">Add anything that can help explain what happened. You don’t need to have everything.</p>
     </div>
 
-    <section className="needed">
-      <h2>Evidence that may help</h2>
-      <p className="helper">You can continue without all of these.</p>
-      <div className="category-grid">
-        {SECTIONS.map(section => <EvidenceSection
-          key={section.type}
-          section={section}
-          error={errors[section.type] ?? null}
-          dismissed={dismissed.has(section.type)}
-          onPick={() => pickFile(section.type)}
-          onDismiss={() => setDismissed(new Set(dismissed).add(section.type))}
-          onUndoDismiss={() => { const next = new Set(dismissed); next.delete(section.type); setDismissed(next) }}
-          detailsOpen={openDetailsFor === section.type}
-          onOpenDetails={() => setOpenDetailsFor(section.type)}
-          onSaveDetails={text => saveDetails(section.type, text)}
-          onCancelDetails={() => setOpenDetailsFor(null)}
-        />)}
-      </div>
+    <section className="evidence-categories">
+      {SECTIONS.map(section => <CategoryRow
+        key={section.type}
+        section={section}
+        error={errors[section.type] ?? null}
+        dismissed={dismissed.has(section.type)}
+        onPick={() => pickFile(section.type)}
+        onDismiss={() => setDismissed(new Set(dismissed).add(section.type))}
+        onUndoDismiss={() => { const next = new Set(dismissed); next.delete(section.type); setDismissed(next) }}
+        detailsOpen={openDetailsFor === section.type}
+        onOpenDetails={() => setOpenDetailsFor(section.type)}
+        onSaveDetails={text => saveDetails(section.type, text)}
+        onCancelDetails={() => setOpenDetailsFor(null)}
+      />)}
       <input ref={fileInputRef} type="file" accept=".jpg,.jpeg,.png,.pdf,image/jpeg,image/png,application/pdf" hidden onChange={onFileChosen} />
     </section>
 
@@ -262,8 +247,6 @@ export function ReportEvidence() {
               <p className="helper">
                 {pending.selectedType === pending.suggestedType ? 'Suggested by AI — please confirm.' : 'You changed the suggested category.'}
               </p>
-              <label htmlFor="classify-note">Add a short note (optional)</label>
-              <input id="classify-note" value={pending.note} onChange={e => setPending({ ...pending, note: e.target.value })} placeholder="Anything that helps explain this file" />
               <div className="category-actions">
                 <button type="button" className="button primary" onClick={savePending}>Save evidence</button>
                 <button type="button" className="link-button" onClick={cancelPending}>Cancel</button>
@@ -272,38 +255,28 @@ export function ReportEvidence() {
       </div>
     </section>}
 
-    <section className="needed">
-      <h2>Added evidence</h2>
-      {incident.evidenceItems.length === 0
-        ? <div className="empty-state">
-            <p><b>No evidence added yet</b></p>
-            <p className="helper">Add any screenshots, transaction details or messages that may help explain the incident.</p>
-          </div>
-        : <ul className="evidence-list">
-            {incident.evidenceItems.map(item => <EvidenceItem
-              key={item.id}
-              item={item}
-              onView={() => viewItem(item)}
-              onReplace={() => replaceItem(item)}
-              onRemove={() => removeItem(item)}
-            />)}
-          </ul>}
-    </section>
+    {report.evidence.length > 0
+      ? <ul className="evidence-list">
+          {report.evidence.map(item => <EvidenceItem
+            key={item.id}
+            item={item}
+            onView={() => viewItem(item)}
+            onReplace={() => replaceItem(item)}
+            onRemove={() => removeItem(item)}
+          />)}
+        </ul>
+      : <p className="helper">No evidence added yet.</p>}
 
-    {missingNotes.length > 0 && <section className="needed">
-      <h2>Missing information</h2>
-      <ul className="missing-list">{missingNotes.map(note => <li key={note}>{note}</li>)}</ul>
-      <p className="helper">You can continue without it.</p>
-    </section>}
+    {report.missingInformation.length > 0 && <p className="helper">
+      You can still continue. Missing: {report.missingInformation.map(missingInformationLabel).join(', ')}.
+    </p>}
 
     <p className="safety-note">Use only information related to this incident. Do not upload passwords, OTPs, PINs or unrelated personal information.</p>
-    <p className="helper">Files stay within this demo and are not sent to a government system.</p>
 
-    <div className="placeholder-actions">
-      <button className="button secondary" type="button" onClick={() => navigate('/report/assisted/review')}>← Back</button>
-      {!continued
-        ? <button className="button primary" type="button" onClick={() => setContinued(true)}>Continue to review <Arrow /></button>
-        : <p className="confirmation">Evidence saved. The review screen isn’t built yet in this prototype.</p>}
-    </div>
+    <StepActionBar
+      onBack={() => navigate('/report/details')}
+      primaryLabel="Continue to review"
+      onPrimary={() => navigate('/report/review')}
+    />
   </main>
 }

@@ -1,8 +1,10 @@
 import { FormEvent, useState } from 'react'
 import { Link, RouterProvider, useRouter } from './router'
-import { IncidentProvider } from './incident'
-import { NotFound, ReportAssisted, ReportAssistedReview, ReportManual, ReportStart } from './report'
+import { ReportProvider } from './reportState'
+import { NotFound, ReportAssisted, ReportManualRedirect, ReportStart } from './report'
+import { ReportDetails } from './details'
 import { ReportEvidence } from './evidence'
+import { ReportReview } from './review'
 
 type ModalKind = 'steps' | 'info' | 'track' | 'category' | null
 
@@ -77,9 +79,10 @@ function Screens({ setModal }: { setModal: (kind: ModalKind) => void }) {
     case '/': return <Landing setModal={setModal} />
     case '/report/start': return <ReportStart />
     case '/report/assisted': return <ReportAssisted />
-    case '/report/assisted/review': return <ReportAssistedReview />
+    case '/report/details': return <ReportDetails />
     case '/report/evidence': return <ReportEvidence />
-    case '/report/manual': return <ReportManual />
+    case '/report/review': return <ReportReview />
+    case '/report/manual': return <ReportManualRedirect />
     default: return <NotFound />
   }
 }
@@ -97,7 +100,7 @@ function Shell() {
 }
 
 function App() {
-  return <RouterProvider><IncidentProvider><Shell /></IncidentProvider></RouterProvider>
+  return <RouterProvider><ReportProvider><Shell /></ReportProvider></RouterProvider>
 }
 
 export default App
