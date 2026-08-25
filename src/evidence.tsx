@@ -1,8 +1,9 @@
-import { ChangeEvent, useRef, useState } from 'react'
+import { ChangeEvent, useMemo, useRef, useState } from 'react'
 import { useRouter } from './router'
-import { EvidenceType, useReport } from './reportState'
+import { EvidenceType, ReportCategory, useReport } from './reportState'
 import type { EvidenceItem as EvidenceRecord } from './reportState'
 import { MissingInfoNote, ProgressSteps, StepActionBar } from './report'
+import { detailsPath, reviewPath } from './reportRoutes'
 
 const ALLOWED_MIME = ['image/jpeg', 'image/png', 'application/pdf']
 const MAX_SIZE = 10 * 1024 * 1024
@@ -15,7 +16,7 @@ interface SectionConfig {
   mode: 'file' | 'details'
 }
 
-const SECTIONS: SectionConfig[] = [
+const FINANCIAL_SECTIONS: SectionConfig[] = [
   { type: 'transaction', title: 'Payment or transaction', description: 'Payment receipt / transaction screenshot.', actionLabel: 'Add file', mode: 'file' },
   { type: 'conversation', title: 'Communication', description: 'WhatsApp, SMS, email or other messages.', actionLabel: 'Add file', mode: 'file' },
   { type: 'contact', title: 'Contact details', description: 'Phone number, UPI ID or account details used.', actionLabel: 'Add details', mode: 'details' },
@@ -23,25 +24,62 @@ const SECTIONS: SectionConfig[] = [
   { type: 'other', title: 'Something else', description: 'Add another file or explain what it contains.', actionLabel: 'Add evidence', mode: 'file' },
 ]
 
-const SECTION_TITLES: Record<EvidenceType, string> = Object.fromEntries(SECTIONS.map(s => [s.type, s.title])) as Record<EvidenceType, string>
-
-const CLASSIFY_OPTIONS: { type: EvidenceType; label: string }[] = [
-  { type: 'transaction', label: 'Payment / transaction' },
-  { type: 'conversation', label: 'Conversation' },
-  { type: 'contact', label: 'Phone / UPI details' },
-  { type: 'website', label: 'Website / profile' },
-  { type: 'other', label: 'Other' },
+const ACCOUNT_SECTIONS: SectionConfig[] = [
+  { type: 'account-alert', title: 'Account or security alert', description: 'Security emails, login alerts or account notifications.', actionLabel: 'Add file', mode: 'file' },
+  { type: 'conversation', title: 'Conversation or message', description: 'Messages showing impersonation, threats or unauthorized activity.', actionLabel: 'Add file', mode: 'file' },
+  { type: 'profile', title: 'Profile or account', description: 'Screenshot of the affected or impersonating profile.', actionLabel: 'Add file', mode: 'file' },
+  { type: 'identity-info', title: 'Identity-related information', description: 'Evidence showing how your personal information was used.', actionLabel: 'Add file', mode: 'file' },
+  { type: 'other', title: 'Something else', description: 'Add another file or explain what it contains.', actionLabel: 'Add evidence', mode: 'file' },
 ]
+
+const OTHER_SECTIONS_BASE: SectionConfig[] = [
+  { type: 'conversation', title: 'Message or conversation', description: 'Chat, message or email related to the incident.', actionLabel: 'Add file', mode: 'file' },
+  { type: 'profile', title: 'Profile / account', description: 'Screenshot of the profile or account involved.', actionLabel: 'Add file', mode: 'file' },
+  { type: 'website', title: 'Website / link', description: 'Link or screenshot of the website involved.', actionLabel: 'Add file', mode: 'file' },
+  { type: 'screenshot', title: 'Screenshot', description: 'Any other relevant screenshot.', actionLabel: 'Add file', mode: 'file' },
+  { type: 'other', title: 'Something else', description: 'Add another file or explain what it contains.', actionLabel: 'Add evidence', mode: 'file' },
+]
+
+function moveToFront(list: SectionConfig[], type: EvidenceType): SectionConfig[] {
+  const item = list.find(s => s.type === type)
+  if (!item) return list
+  return [item, ...list.filter(s => s.type !== type)]
+}
+
+function sectionsFor(category: ReportCategory, issueType: string | null): SectionConfig[] {
+  if (category === 'account-identity') return ACCOUNT_SECTIONS
+  if (category === 'other-cyber') {
+    if (issueType === 'Fake profile or impersonation') return moveToFront(OTHER_SECTIONS_BASE, 'profile')
+    if (issueType === 'Suspicious message, link or website') return moveToFront(OTHER_SECTIONS_BASE, 'website')
+    return OTHER_SECTIONS_BASE
+  }
+  return FINANCIAL_SECTIONS
+}
+
+const CLASSIFY_LABELS: Record<EvidenceType, string> = {
+  transaction: 'Payment / transaction',
+  conversation: 'Conversation',
+  contact: 'Phone / UPI details',
+  website: 'Website / profile',
+  other: 'Other',
+  'account-alert': 'Account or security alert',
+  profile: 'Profile or account',
+  'identity-info': 'Identity-related information',
+  screenshot: 'Screenshot',
+}
 
 function makeId() {
   return typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `ev-${Date.now()}-${Math.random().toString(36).slice(2)}`
 }
 
-function suggestType(fileName: string, fallback: EvidenceType): EvidenceType {
+function suggestType(fileName: string, fallback: EvidenceType, available: EvidenceType[]): EvidenceType {
   const name = fileName.toLowerCase()
-  if (/receipt|payment|txn|transaction|upi|paid|debit|credit/.test(name)) return 'transaction'
-  if (/chat|whatsapp|sms|message|mail/.test(name)) return 'conversation'
-  if (/site|web|profile|listing|url|link/.test(name)) return 'website'
+  const pick = (type: EvidenceType) => available.includes(type)
+  if (pick('transaction') && /receipt|payment|txn|transaction|upi|paid|debit|credit/.test(name)) return 'transaction'
+  if (pick('account-alert') && /alert|security|hacked|login/.test(name)) return 'account-alert'
+  if (pick('conversation') && /chat|whatsapp|sms|message|mail/.test(name)) return 'conversation'
+  if (pick('profile') && /profile|account/.test(name)) return 'profile'
+  if (pick('website') && /site|web|profile|listing|url|link/.test(name)) return 'website'
   return fallback
 }
 
@@ -60,8 +98,9 @@ interface PendingUpload {
   status: 'loading' | 'confirming'
 }
 
-function EvidenceItem({ item, onView, onReplace, onRemove }: {
+function EvidenceItem({ item, sectionTitles, onView, onReplace, onRemove }: {
   item: EvidenceRecord
+  sectionTitles: Record<string, string>
   onView: () => void
   onReplace: () => void
   onRemove: () => void
@@ -74,7 +113,7 @@ function EvidenceItem({ item, onView, onReplace, onRemove }: {
     </div>
     <div className="evidence-meta">
       <p className="evidence-title">{title}</p>
-      <p className="evidence-category">{SECTION_TITLES[item.type]}{item.size ? ` · ${formatSize(item.size)}` : ''}</p>
+      <p className="evidence-category">{sectionTitles[item.type] ?? item.type}{item.size ? ` · ${formatSize(item.size)}` : ''}</p>
     </div>
     <span className="added-state">✓ Added</span>
     <div className="evidence-actions">
@@ -117,6 +156,13 @@ function CategoryRow({ section, error, onPick, detailsOpen, onOpenDetails, onSav
 export function ReportEvidence() {
   const { navigate } = useRouter()
   const { report, setReport } = useReport()
+  const category = report.category ?? 'financial-fraud'
+  const issueType = category === 'other-cyber' ? report.otherIncident.issueType : null
+
+  const sections = useMemo(() => sectionsFor(category, issueType), [category, issueType])
+  const sectionTitles = useMemo(() => Object.fromEntries(sections.map(s => [s.type, s.title])), [sections])
+  const classifyOptions = useMemo(() => sections.map(s => ({ type: s.type, label: CLASSIFY_LABELS[s.type] ?? s.title })), [sections])
+
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [uploadingSection, setUploadingSection] = useState<EvidenceType | null>(null)
   const [pending, setPending] = useState<PendingUpload | null>(null)
@@ -144,7 +190,7 @@ export function ReportEvidence() {
     }
     try {
       const previewUrl = URL.createObjectURL(file)
-      const suggestedType = suggestType(file.name, sectionType)
+      const suggestedType = suggestType(file.name, sectionType, sections.map(s => s.type))
       setPending({ sectionType, file, previewUrl, suggestedType, selectedType: suggestedType, note: '', status: 'loading' })
       setTimeout(() => setPending(current => (current && current.file === file ? { ...current, status: 'confirming' } : current)), 600)
     } catch {
@@ -191,7 +237,7 @@ export function ReportEvidence() {
 
   const replaceItem = (item: EvidenceRecord) => {
     removeItem(item)
-    const section = SECTIONS.find(s => s.type === item.type)
+    const section = sections.find(s => s.type === item.type)
     if (section?.mode === 'details') setOpenDetailsFor(item.type)
     else pickFile(item.type)
   }
@@ -205,7 +251,7 @@ export function ReportEvidence() {
     </div>
 
     <section className="evidence-categories">
-      {SECTIONS.map(section => <CategoryRow
+      {sections.map(section => <CategoryRow
         key={section.type}
         section={section}
         error={errors[section.type] ?? null}
@@ -229,7 +275,7 @@ export function ReportEvidence() {
           : <>
               <label htmlFor="classify-type">What does this show?</label>
               <select id="classify-type" value={pending.selectedType} onChange={e => setPending({ ...pending, selectedType: e.target.value as EvidenceType })}>
-                {CLASSIFY_OPTIONS.map(o => <option key={o.type} value={o.type}>{o.label}</option>)}
+                {classifyOptions.map(o => <option key={o.type} value={o.type}>{o.label}</option>)}
               </select>
               <p className="helper">
                 {pending.selectedType === pending.suggestedType ? 'Suggested by AI — please confirm.' : 'You changed the suggested category.'}
@@ -247,6 +293,7 @@ export function ReportEvidence() {
           {report.evidence.map(item => <EvidenceItem
             key={item.id}
             item={item}
+            sectionTitles={sectionTitles}
             onView={() => viewItem(item)}
             onReplace={() => replaceItem(item)}
             onRemove={() => removeItem(item)}
@@ -254,14 +301,14 @@ export function ReportEvidence() {
         </ul>
       : <p className="helper">No evidence added yet.</p>}
 
-    <MissingInfoNote missing={report.missingInformation} onAddDetails={() => navigate('/report/details')} />
+    <MissingInfoNote missing={report.missingInformation} onAddDetails={() => navigate(detailsPath(category))} />
 
     <p className="safety-note">Use only information related to this incident. Do not upload passwords, OTPs, PINs or unrelated personal information.</p>
 
     <StepActionBar
-      onBack={() => navigate('/report/details')}
+      onBack={() => navigate(detailsPath(category))}
       primaryLabel="Continue to review"
-      onPrimary={() => navigate('/report/review')}
+      onPrimary={() => navigate(reviewPath(category))}
     />
   </main>
 }

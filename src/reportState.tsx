@@ -1,6 +1,8 @@
 import { createContext, ReactNode, useContext, useMemo, useState } from 'react'
 
-export type EvidenceType = 'transaction' | 'conversation' | 'contact' | 'website' | 'other'
+export type EvidenceType =
+  | 'transaction' | 'conversation' | 'contact' | 'website' | 'other'
+  | 'account-alert' | 'profile' | 'identity-info' | 'screenshot'
 
 export interface EvidenceItem {
   id: string
@@ -16,6 +18,7 @@ export interface EvidenceItem {
 
 export interface ReportIncident {
   type: string | null
+  subType: string | null
   amount: number | null
   currency: 'INR'
   paymentMethod: string | null
@@ -26,19 +29,49 @@ export interface ReportIncident {
   description: string
 }
 
+export interface AccountIdentityInfo {
+  affectedType: string | null
+  accessStatus: string | null
+  accountPlatform: string | null
+  misuseType: string | null
+  accountRecovered: boolean | null
+}
+
+export interface OtherIncidentInfo {
+  issueType: string | null
+  platform: string | null
+  personOrAccountIdentifier: string | null
+  immediateRisk: string | null
+}
+
+export type ReportCategory = 'financial-fraud' | 'account-identity' | 'other-cyber'
+
 export interface ReportState {
+  id: string
+  category: ReportCategory | null
   entryMode: 'assisted' | 'manual' | null
   incident: ReportIncident
+  accountIdentity: AccountIdentityInfo
+  otherIncident: OtherIncidentInfo
   transaction: { transactionId: string | null }
   evidence: EvidenceItem[]
   missingInformation: string[]
+  status: { stage: string; createdAt: string; lastUpdated: string }
+}
+
+function makeReportId() {
+  return typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `report-${Date.now()}-${Math.random().toString(36).slice(2)}`
 }
 
 export function emptyReportState(): ReportState {
+  const now = new Date().toISOString()
   return {
+    id: makeReportId(),
+    category: null,
     entryMode: null,
     incident: {
       type: null,
+      subType: null,
       amount: null,
       currency: 'INR',
       paymentMethod: null,
@@ -48,9 +81,23 @@ export function emptyReportState(): ReportState {
       impersonation: null,
       description: '',
     },
+    accountIdentity: {
+      affectedType: null,
+      accessStatus: null,
+      accountPlatform: null,
+      misuseType: null,
+      accountRecovered: null,
+    },
+    otherIncident: {
+      issueType: null,
+      platform: null,
+      personOrAccountIdentifier: null,
+      immediateRisk: null,
+    },
     transaction: { transactionId: null },
     evidence: [],
     missingInformation: [],
+    status: { stage: 'draft', createdAt: now, lastUpdated: now },
   }
 }
 
@@ -61,13 +108,20 @@ const MISSING_LABELS: Record<string, string> = {
   approximateTime: 'Approximate time',
   contactMethod: 'How you were contacted',
   transactionId: 'Transaction ID',
+  accountPlatform: 'Platform',
+  accessStatus: 'Access status',
+  misuseType: 'Additional detail',
+  otherPlatform: 'Platform',
+  identifier: 'Profile, account or link',
 }
 
 export function missingInformationLabel(key: string) {
   return MISSING_LABELS[key] ?? key
 }
 
-export function deriveMissingInformation(state: Pick<ReportState, 'incident' | 'transaction'>): string[] {
+type DerivableState = Pick<ReportState, 'incident' | 'transaction' | 'category' | 'accountIdentity' | 'otherIncident'>
+
+function deriveFinancialMissing(state: DerivableState): string[] {
   const missing: string[] = []
   if (!state.incident.amount) missing.push('amount')
   if (!state.incident.paymentMethod) missing.push('paymentMethod')
@@ -76,6 +130,34 @@ export function deriveMissingInformation(state: Pick<ReportState, 'incident' | '
   if (!state.incident.contactMethod) missing.push('contactMethod')
   if (!state.transaction.transactionId) missing.push('transactionId')
   return missing
+}
+
+function deriveAccountIdentityMissing(state: DerivableState): string[] {
+  const missing: string[] = []
+  if (!state.accountIdentity.accountPlatform) missing.push('accountPlatform')
+  if (!state.incident.date) missing.push('date')
+  if (!state.incident.approximateTime) missing.push('approximateTime')
+  if (state.accountIdentity.affectedType === 'Hacked account' || state.accountIdentity.affectedType === 'Someone accessed my account without permission') {
+    if (!state.accountIdentity.accessStatus) missing.push('accessStatus')
+  }
+  if (state.accountIdentity.affectedType && state.accountIdentity.affectedType !== 'Something else' && !state.accountIdentity.misuseType) {
+    missing.push('misuseType')
+  }
+  return missing
+}
+
+function deriveOtherMissing(state: DerivableState): string[] {
+  const missing: string[] = []
+  if (!state.otherIncident.platform) missing.push('otherPlatform')
+  if (!state.incident.date) missing.push('date')
+  if (!state.otherIncident.personOrAccountIdentifier) missing.push('identifier')
+  return missing
+}
+
+export function deriveMissingInformation(state: DerivableState): string[] {
+  if (state.category === 'account-identity') return deriveAccountIdentityMissing(state)
+  if (state.category === 'other-cyber') return deriveOtherMissing(state)
+  return deriveFinancialMissing(state)
 }
 
 type ReportUpdater = ReportState | ((current: ReportState) => ReportState)

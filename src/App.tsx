@@ -6,8 +6,11 @@ import { ReportDetails } from './details'
 import { ReportEvidence } from './evidence'
 import { ReportReview } from './review'
 import { ReportSubmission } from './submission'
+import { ReportStatus } from './status'
+import { AccountIdentityAssisted, AccountIdentityAssistedReview, AccountIdentityManual, AccountIdentityStart } from './accountIdentity'
+import { OtherAssisted, OtherAssistedReview, OtherManual, OtherStart } from './otherCyber'
 
-type ModalKind = 'steps' | 'info' | 'track' | 'category' | null
+type ModalKind = 'steps' | 'info' | 'track' | null
 
 const Arrow = () => <span aria-hidden="true">→</span>
 
@@ -24,13 +27,11 @@ function Modal({ kind, onClose }: { kind: ModalKind; onClose: () => void }) {
   const [tracked, setTracked] = useState(false)
   const submitTrack = (event: FormEvent) => { event.preventDefault(); setTracked(true) }
   if (!kind) return null
-  const category = kind === 'category'
   return <div className="modal-backdrop" role="presentation" onMouseDown={onClose}>
     <section className="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title" onMouseDown={e => e.stopPropagation()}>
       <button className="close" onClick={onClose} aria-label="Close dialog">×</button>
       {kind === 'steps' && <><p className="eyebrow">ACT NOW</p><h2 id="modal-title">What should I do first?</h2><ol className="steps"><li><strong>Call 1930.</strong> If money was just transferred, contact the financial-cyber-fraud helpline immediately.</li><li><strong>Contact your bank or payment provider.</strong> Ask about securing the transaction.</li><li><strong>Preserve evidence.</strong> Keep messages, payment references and screenshots.</li><li><strong>Report the incident.</strong> Use this prototype to understand the reporting journey.</li></ol></>}
       {kind === 'info' && <><p className="eyebrow">HELP</p><h2 id="modal-title">Information to keep</h2><p>Keep the approximate time of the incident, the amount involved, payment references, account or profile details used by the scammer, messages, links, and screenshots.</p><p>This prototype never asks you to submit real financial or identity information.</p></>}
-      {category && <><p className="eyebrow">INFORMATION</p><h2 id="modal-title">This journey is not in the prototype yet</h2><p>Sahay currently demonstrates the financial-fraud reporting journey only. For other cybercrime categories, use the official National Cyber Crime Reporting Portal.</p><a className="button primary" href="https://cybercrime.gov.in" target="_blank" rel="noreferrer">Go to official portal <Arrow /></a></>}
       {kind === 'track' && <><p className="eyebrow">DEMO TRACKING</p><h2 id="modal-title">Track your report</h2>{!tracked ? <form onSubmit={submitTrack}><label htmlFor="report-id">Enter your demo report ID</label><input id="report-id" defaultValue="NCRP-DEMO-48291" aria-describedby="demo-id" /><p id="demo-id" className="helper">Demo: use NCRP-DEMO-48291</p><button className="button primary" type="submit">Check status <Arrow /></button></form> : <div className="timeline"><div className="done"><b>Report submitted</b><span>23 Aug · 7:18 PM</span></div><div className="current"><b>Under review</b><span>Your demo complaint is awaiting review.</span></div><div><b>Forwarded to relevant authority</b></div><div><b>Further action</b></div></div>}</>}
     </section>
   </div>
@@ -64,8 +65,8 @@ function Landing({ setModal }: { setModal: (kind: ModalKind) => void }) {
     <section className="hero container"><div className="hero-top"><div className="hero-copy"><h1>What happened?</h1><p className="lead">We’ll help you take the right next step.</p><span className="orange-rule"></span><p className="intro">If you’ve experienced online financial fraud, account misuse or another cyber incident, start here.</p></div><HeroArtwork /></div>
       <div className="service-grid" id="report">
         <article className="service-card featured"><CardIllustration type="money" /><div><h2>I lost money</h2><p>UPI, bank transfer, card, investment or online payment fraud.</p><Link to="/report/start">Start report <Arrow /></Link></div></article>
-        <article className="service-card identity"><CardIllustration type="identity" /><div><h2>My account or identity was misused</h2><p>Hacked accounts, impersonation or unauthorized access.</p><button onClick={() => setModal('category')}>Get help <Arrow /></button></div></article>
-        <article className="service-card other wide"><CardIllustration type="other" /><div><h2>Something else happened online</h2><p>Harassment, threats, fake profiles or another cyber issue.</p><button onClick={() => setModal('category')}>Find the right service <Arrow /></button></div></article>
+        <article className="service-card identity"><CardIllustration type="identity" /><div><h2>My account or identity was misused</h2><p>Hacked accounts, impersonation or unauthorized access.</p><Link to="/report/account-identity/start">Get help <Arrow /></Link></div></article>
+        <article className="service-card other wide"><CardIllustration type="other" /><div><h2>Something else happened online</h2><p>Harassment, threats, fake profiles or another cyber issue.</p><Link to="/report/other/start">Find the right service <Arrow /></Link></div></article>
       </div>
     </section>
     <section className="emergency"><div className="container emergency-inner"><div><p className="eyebrow">IF MONEY WAS JUST TRANSFERRED</p><h2>Call 1930 immediately.</h2><p>If you have just experienced financial cyber fraud, contact 1930 and your bank or payment provider as soon as possible.</p></div><div className="actions"><a className="button primary" href="tel:1930">Call 1930</a><button className="text-link" onClick={() => setModal('steps')}>What should I do first? <Arrow /></button></div></div></section>
@@ -85,6 +86,27 @@ function Screens({ setModal }: { setModal: (kind: ModalKind) => void }) {
     case '/report/review': return <ReportReview />
     case '/report/submission': return <ReportSubmission />
     case '/report/manual': return <ReportManualEntry />
+
+    case '/report/account-identity/start': return <AccountIdentityStart />
+    case '/report/account-identity/assisted': return <AccountIdentityAssisted />
+    case '/report/account-identity/assisted/review': return <AccountIdentityAssistedReview />
+    case '/report/account-identity/manual': return <AccountIdentityManual />
+    case '/report/account-identity/details': return <ReportDetails />
+    case '/report/account-identity/evidence': return <ReportEvidence />
+    case '/report/account-identity/review': return <ReportReview />
+    case '/report/account-identity/submitted': return <ReportSubmission />
+    case '/report/account-identity/status': return <ReportStatus />
+
+    case '/report/other/start': return <OtherStart />
+    case '/report/other/assisted': return <OtherAssisted />
+    case '/report/other/assisted/review': return <OtherAssistedReview />
+    case '/report/other/manual': return <OtherManual />
+    case '/report/other/details': return <ReportDetails />
+    case '/report/other/evidence': return <ReportEvidence />
+    case '/report/other/review': return <ReportReview />
+    case '/report/other/submitted': return <ReportSubmission />
+    case '/report/other/status': return <ReportStatus />
+
     default: return <NotFound />
   }
 }

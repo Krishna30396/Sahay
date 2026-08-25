@@ -1,7 +1,18 @@
 import { ReactNode, useEffect } from 'react'
 import { useRouter } from './router'
-import { ReportIncident, useReport } from './reportState'
+import { AccountIdentityInfo, OtherIncidentInfo, ReportIncident, useReport } from './reportState'
 import { ProgressSteps, StepActionBar } from './report'
+import { assistedReviewPath, evidencePath, manualPath, startPath } from './reportRoutes'
+import {
+  ACCESS_STATUS_OPTIONS,
+  ACCOUNT_PLATFORM_OPTIONS,
+  OTHER_PLATFORM_OPTIONS,
+  accountMisuseFieldLabel,
+  accountMisuseOptions,
+  accountPlatformFieldLabel,
+  accountShowsAccess,
+  accountShowsMisuse,
+} from './categoryLabels'
 
 function SourceTag() {
   return <span className="source-tag">From your description</span>
@@ -14,15 +25,21 @@ const FIELD_HELPERS: Record<string, string> = {
   approximateTime: 'An approximate time is okay.',
   contactMethod: 'Skip this if not applicable.',
   transactionId: 'Add this later if you find it.',
+  accountPlatform: 'You can select this later if unsure.',
+  accessStatus: 'You can update this later.',
+  misuseType: 'You can add this later.',
+  otherPlatform: 'You can select this later if unsure.',
+  identifier: 'Add this later if you have it.',
 }
 
 export function ReportDetails() {
   const { navigate } = useRouter()
   const { report, setReport } = useReport()
+  const category = report.category ?? 'financial-fraud'
 
   useEffect(() => {
-    if (!report.entryMode) navigate('/report/start')
-  }, [report.entryMode, navigate])
+    if (!report.entryMode) navigate(startPath(report.category))
+  }, [report.entryMode, report.category, navigate])
 
   if (!report.entryMode) return null
 
@@ -34,64 +51,160 @@ export function ReportDetails() {
   const updateTransactionId = (value: string) =>
     setReport(current => ({ ...current, transaction: { transactionId: value || null } }))
 
+  const updateAccount = <K extends keyof AccountIdentityInfo>(key: K, value: AccountIdentityInfo[K]) =>
+    setReport(current => ({ ...current, accountIdentity: { ...current.accountIdentity, [key]: value } }))
+
+  const updateOther = <K extends keyof OtherIncidentInfo>(key: K, value: OtherIncidentInfo[K]) =>
+    setReport(current => ({ ...current, otherIncident: { ...current.otherIncident, [key]: value } }))
+
   const field = (key: string, hasValue: boolean, node: ReactNode) => ({ key, hasValue, node })
 
-  const fields = [
-    field('amount', report.incident.amount != null, <label>Amount involved (₹) {isAssisted && report.incident.amount != null && <SourceTag />}
-      <input inputMode="numeric" type="number" value={report.incident.amount ?? ''} onChange={e => updateIncident('amount', e.target.value ? Number(e.target.value) : null)} placeholder="Not provided yet" />
-      {report.incident.amount == null && <span className="detail-field-helper">{FIELD_HELPERS.amount}</span>}
-    </label>),
-    field('paymentMethod', !!report.incident.paymentMethod, <label>Payment method {isAssisted && report.incident.paymentMethod && <SourceTag />}
-      <select value={report.incident.paymentMethod ?? ''} onChange={e => updateIncident('paymentMethod', e.target.value || null)}>
-        <option value="">Not provided yet</option>
-        <option>UPI</option>
-        <option>Bank transfer</option>
-        <option>Card</option>
-        <option>Net banking</option>
-        <option>Wallet</option>
-        <option>Other</option>
-      </select>
-      {!report.incident.paymentMethod && <span className="detail-field-helper">{FIELD_HELPERS.paymentMethod}</span>}
-    </label>),
-    field('date', !!report.incident.date, <label>Date {isAssisted && report.incident.date && <SourceTag />}
-      <input value={report.incident.date ?? ''} onChange={e => updateIncident('date', e.target.value || null)} placeholder="Not provided yet" />
-      {!report.incident.date && <span className="detail-field-helper">{FIELD_HELPERS.date}</span>}
-    </label>),
-    field('approximateTime', !!report.incident.approximateTime, <label>Approximate time {isAssisted && report.incident.approximateTime && <SourceTag />}
-      <input value={report.incident.approximateTime ?? ''} onChange={e => updateIncident('approximateTime', e.target.value || null)} placeholder="Not provided yet" />
-      {!report.incident.approximateTime && <span className="detail-field-helper">{FIELD_HELPERS.approximateTime}</span>}
-    </label>),
-    field('contactMethod', !!report.incident.contactMethod, <label>How were you contacted? {isAssisted && report.incident.contactMethod && <SourceTag />}
-      <select value={report.incident.contactMethod ?? ''} onChange={e => updateIncident('contactMethod', e.target.value || null)}>
-        <option value="">Not provided yet</option>
-        <option>Phone call</option>
-        <option>SMS</option>
-        <option>WhatsApp</option>
-        <option>Email</option>
-        <option>In person</option>
-        <option>Not applicable</option>
-      </select>
-      {!report.incident.contactMethod && <span className="detail-field-helper">{FIELD_HELPERS.contactMethod}</span>}
-    </label>),
-    field('transactionId', !!report.transaction.transactionId, <label>Transaction ID {isAssisted && report.transaction.transactionId && <SourceTag />}
-      <input value={report.transaction.transactionId ?? ''} onChange={e => updateTransactionId(e.target.value)} placeholder="Not provided yet" />
-      {!report.transaction.transactionId && <span className="detail-field-helper">{FIELD_HELPERS.transactionId}</span>}
-    </label>),
-  ]
+  let typeLabel = 'Incident type'
+  let typeValue = report.incident.type ?? 'Financial fraud'
+  let fields: ReturnType<typeof field>[]
+
+  if (category === 'account-identity') {
+    typeLabel = 'Issue'
+    typeValue = report.accountIdentity.affectedType ?? 'Not provided yet'
+    const affectedType = report.accountIdentity.affectedType
+    fields = [
+      field('accountPlatform', !!report.accountIdentity.accountPlatform, <label>{accountPlatformFieldLabel(affectedType)} {isAssisted && report.accountIdentity.accountPlatform && <SourceTag />}
+        <select value={report.accountIdentity.accountPlatform ?? ''} onChange={e => updateAccount('accountPlatform', e.target.value || null)}>
+          <option value="">Not provided yet</option>
+          {ACCOUNT_PLATFORM_OPTIONS.map(o => <option key={o}>{o}</option>)}
+        </select>
+        {!report.accountIdentity.accountPlatform && <span className="detail-field-helper">{FIELD_HELPERS.accountPlatform}</span>}
+      </label>),
+      field('date', !!report.incident.date, <label>Date {isAssisted && report.incident.date && <SourceTag />}
+        <input value={report.incident.date ?? ''} onChange={e => updateIncident('date', e.target.value || null)} placeholder="Not provided yet" />
+        {!report.incident.date && <span className="detail-field-helper">{FIELD_HELPERS.date}</span>}
+      </label>),
+      field('approximateTime', !!report.incident.approximateTime, <label>Approximate time {isAssisted && report.incident.approximateTime && <SourceTag />}
+        <input value={report.incident.approximateTime ?? ''} onChange={e => updateIncident('approximateTime', e.target.value || null)} placeholder="Not provided yet" />
+        {!report.incident.approximateTime && <span className="detail-field-helper">{FIELD_HELPERS.approximateTime}</span>}
+      </label>),
+    ]
+    if (accountShowsAccess(affectedType)) {
+      fields.push(field('accessStatus', !!report.accountIdentity.accessStatus, <label>Can you still access the account? {isAssisted && report.accountIdentity.accessStatus && <SourceTag />}
+        <select value={report.accountIdentity.accessStatus ?? ''} onChange={e => updateAccount('accessStatus', e.target.value || null)}>
+          <option value="">Not provided yet</option>
+          {ACCESS_STATUS_OPTIONS.map(o => <option key={o}>{o}</option>)}
+        </select>
+        {!report.accountIdentity.accessStatus && <span className="detail-field-helper">{FIELD_HELPERS.accessStatus}</span>}
+      </label>))
+    }
+    if (accountShowsMisuse(affectedType)) {
+      fields.push(field('misuseType', !!report.accountIdentity.misuseType, <label>{accountMisuseFieldLabel(affectedType)} {isAssisted && report.accountIdentity.misuseType && <SourceTag />}
+        <select value={report.accountIdentity.misuseType ?? ''} onChange={e => updateAccount('misuseType', e.target.value || null)}>
+          <option value="">Not provided yet</option>
+          {accountMisuseOptions(affectedType).map(o => <option key={o}>{o}</option>)}
+        </select>
+        {!report.accountIdentity.misuseType && <span className="detail-field-helper">{FIELD_HELPERS.misuseType}</span>}
+      </label>))
+    }
+  } else if (category === 'other-cyber') {
+    typeLabel = 'Issue'
+    typeValue = report.otherIncident.issueType ?? 'Not provided yet'
+    const issueType = report.otherIncident.issueType
+    fields = [
+      field('otherPlatform', !!report.otherIncident.platform, <label>Platform {isAssisted && report.otherIncident.platform && <SourceTag />}
+        <select value={report.otherIncident.platform ?? ''} onChange={e => updateOther('platform', e.target.value || null)}>
+          <option value="">Not provided yet</option>
+          {OTHER_PLATFORM_OPTIONS.map(o => <option key={o}>{o}</option>)}
+        </select>
+        {!report.otherIncident.platform && <span className="detail-field-helper">{FIELD_HELPERS.otherPlatform}</span>}
+      </label>),
+      field('date', !!report.incident.date, <label>Date {isAssisted && report.incident.date && <SourceTag />}
+        <input value={report.incident.date ?? ''} onChange={e => updateIncident('date', e.target.value || null)} placeholder="Not provided yet" />
+        {!report.incident.date && <span className="detail-field-helper">{FIELD_HELPERS.date}</span>}
+      </label>),
+    ]
+    if (issueType === 'Threats or harassment') {
+      fields.push(field('approximateTime', !!report.incident.approximateTime, <label>Approximate time {isAssisted && report.incident.approximateTime && <SourceTag />}
+        <input value={report.incident.approximateTime ?? ''} onChange={e => updateIncident('approximateTime', e.target.value || null)} placeholder="Not provided yet" />
+        {!report.incident.approximateTime && <span className="detail-field-helper">{FIELD_HELPERS.approximateTime}</span>}
+      </label>))
+      fields.push(field('contactMethod', !!report.incident.contactMethod, <label>How you are being contacted {isAssisted && report.incident.contactMethod && <SourceTag />}
+        <select value={report.incident.contactMethod ?? ''} onChange={e => updateIncident('contactMethod', e.target.value || null)}>
+          <option value="">Not provided yet</option>
+          {OTHER_PLATFORM_OPTIONS.map(o => <option key={o}>{o}</option>)}
+        </select>
+        {!report.incident.contactMethod && <span className="detail-field-helper">{FIELD_HELPERS.contactMethod}</span>}
+      </label>))
+    }
+    if (issueType === 'Fake profile or impersonation' || issueType === 'Suspicious message, link or website') {
+      fields.push(field('identifier', !!report.otherIncident.personOrAccountIdentifier, <label>Profile, account or link {isAssisted && report.otherIncident.personOrAccountIdentifier && <SourceTag />}
+        <input value={report.otherIncident.personOrAccountIdentifier ?? ''} onChange={e => updateOther('personOrAccountIdentifier', e.target.value || null)} placeholder="Not provided yet" />
+        {!report.otherIncident.personOrAccountIdentifier && <span className="detail-field-helper">{FIELD_HELPERS.identifier}</span>}
+      </label>))
+    }
+  } else {
+    fields = [
+      field('amount', report.incident.amount != null, <label>Amount involved (₹) {isAssisted && report.incident.amount != null && <SourceTag />}
+        <input inputMode="numeric" type="number" value={report.incident.amount ?? ''} onChange={e => updateIncident('amount', e.target.value ? Number(e.target.value) : null)} placeholder="Not provided yet" />
+        {report.incident.amount == null && <span className="detail-field-helper">{FIELD_HELPERS.amount}</span>}
+      </label>),
+      field('paymentMethod', !!report.incident.paymentMethod, <label>Payment method {isAssisted && report.incident.paymentMethod && <SourceTag />}
+        <select value={report.incident.paymentMethod ?? ''} onChange={e => updateIncident('paymentMethod', e.target.value || null)}>
+          <option value="">Not provided yet</option>
+          <option>UPI</option>
+          <option>Bank transfer</option>
+          <option>Card</option>
+          <option>Net banking</option>
+          <option>Wallet</option>
+          <option>Other</option>
+        </select>
+        {!report.incident.paymentMethod && <span className="detail-field-helper">{FIELD_HELPERS.paymentMethod}</span>}
+      </label>),
+      field('date', !!report.incident.date, <label>Date {isAssisted && report.incident.date && <SourceTag />}
+        <input value={report.incident.date ?? ''} onChange={e => updateIncident('date', e.target.value || null)} placeholder="Not provided yet" />
+        {!report.incident.date && <span className="detail-field-helper">{FIELD_HELPERS.date}</span>}
+      </label>),
+      field('approximateTime', !!report.incident.approximateTime, <label>Approximate time {isAssisted && report.incident.approximateTime && <SourceTag />}
+        <input value={report.incident.approximateTime ?? ''} onChange={e => updateIncident('approximateTime', e.target.value || null)} placeholder="Not provided yet" />
+        {!report.incident.approximateTime && <span className="detail-field-helper">{FIELD_HELPERS.approximateTime}</span>}
+      </label>),
+      field('contactMethod', !!report.incident.contactMethod, <label>How were you contacted? {isAssisted && report.incident.contactMethod && <SourceTag />}
+        <select value={report.incident.contactMethod ?? ''} onChange={e => updateIncident('contactMethod', e.target.value || null)}>
+          <option value="">Not provided yet</option>
+          <option>Phone call</option>
+          <option>SMS</option>
+          <option>WhatsApp</option>
+          <option>Email</option>
+          <option>In person</option>
+          <option>Not applicable</option>
+        </select>
+        {!report.incident.contactMethod && <span className="detail-field-helper">{FIELD_HELPERS.contactMethod}</span>}
+      </label>),
+      field('transactionId', !!report.transaction.transactionId, <label>Transaction ID {isAssisted && report.transaction.transactionId && <SourceTag />}
+        <input value={report.transaction.transactionId ?? ''} onChange={e => updateTransactionId(e.target.value)} placeholder="Not provided yet" />
+        {!report.transaction.transactionId && <span className="detail-field-helper">{FIELD_HELPERS.transactionId}</span>}
+      </label>),
+    ]
+  }
 
   const found = fields.filter(f => f.hasValue)
   const stillNeeded = fields.filter(f => !f.hasValue)
 
+  const heading = category === 'financial-fraud'
+    ? (isAssisted ? 'Here’s what we understood' : 'Check your details')
+    : (isAssisted ? 'Review what we understood' : 'Review your details')
+
+  const backTo = () => {
+    if (category === 'financial-fraud') { navigate(isAssisted ? '/report/assisted' : '/report/manual'); return }
+    navigate(isAssisted ? assistedReviewPath(category) : manualPath(category))
+  }
+
   return <main className="report-page">
     <ProgressSteps current="Details" />
     <div className="report-intro">
-      <h1>{isAssisted ? 'Here’s what we understood' : 'Check your details'}</h1>
+      <h1>{heading}</h1>
       <p className="lead">Check each field and make changes if anything looks wrong. Optional fields can be left blank.</p>
     </div>
     <form className="review-form" onSubmit={event => event.preventDefault()}>
       <div className="field-grid">
-        <label>Incident type
-          <input value={report.incident.type ?? 'Financial fraud'} disabled />
+        <label>{typeLabel}
+          <input value={typeValue} disabled />
         </label>
       </div>
 
@@ -105,23 +218,23 @@ export function ReportDetails() {
         <div className="field-grid">{stillNeeded.map(f => <div key={f.key} className="detail-field missing">{f.node}</div>)}</div>
       </section>}
 
-      <label className="checkbox-field standalone">
+      {category === 'financial-fraud' && <label className="checkbox-field standalone">
         <input
           type="checkbox"
           checked={report.incident.impersonation === true}
           onChange={e => updateIncident('impersonation', e.target.checked)}
         />
         The person or message claimed to represent a bank, company or government office
-      </label>
+      </label>}
 
       <label className="description-field">Description
         <textarea value={report.incident.description} onChange={e => updateIncident('description', e.target.value)} placeholder="Not provided yet" />
       </label>
     </form>
     <StepActionBar
-      onBack={() => navigate(isAssisted ? '/report/assisted' : '/report/manual')}
+      onBack={backTo}
       primaryLabel="Continue to evidence"
-      onPrimary={() => navigate('/report/evidence')}
+      onPrimary={() => navigate(evidencePath(category))}
     />
   </main>
 }

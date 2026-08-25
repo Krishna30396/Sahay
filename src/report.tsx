@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link, useRouter } from './router'
-import { ReportIncident, missingInformationLabel, useReport } from './reportState'
+import { ReportCategory, ReportIncident, missingInformationLabel, useReport } from './reportState'
 
 const Arrow = () => <span aria-hidden="true">→</span>
 
@@ -47,22 +47,30 @@ function SafetyNote() {
   return <p className="safety-note">If the payment happened just now, call <a href="tel:1930">1930</a> and your bank/payment provider immediately.</p>
 }
 
-export function ReportStart() {
+export function EntryStartShell({ category, title, supportingText, assistedPath, manualPath, needed, showSafetyNote }: {
+  category: ReportCategory
+  title: string
+  supportingText: string
+  assistedPath: string
+  manualPath: string
+  needed?: { heading: string; items: string[] }
+  showSafetyNote?: boolean
+}) {
   const { navigate } = useRouter()
   const { setReport } = useReport()
   const [selected, setSelected] = useState<'assisted' | 'manual' | null>(null)
 
   const goNext = () => {
     if (!selected) return
-    setReport(current => ({ ...current, entryMode: selected }))
-    navigate(selected === 'assisted' ? '/report/assisted' : '/report/manual')
+    setReport(current => ({ ...current, category, entryMode: selected }))
+    navigate(selected === 'assisted' ? assistedPath : manualPath)
   }
 
   return <main className="report-page">
     <ProgressSteps current="Start" />
     <div className="report-intro">
-      <h1>Let’s prepare your report</h1>
-      <p className="lead">You can describe what happened in your own words, or enter the details yourself.</p>
+      <h1>{title}</h1>
+      <p className="lead">{supportingText}</p>
       <p className="reassurance">You will review everything before anything is submitted.</p>
     </div>
     <div className="option-grid" role="radiogroup" aria-label="How would you like to provide details?">
@@ -80,18 +88,14 @@ export function ReportStart() {
         <p className="option-support">You’ll have full control over every field.</p>
       </label>
     </div>
-    <section className="needed">
-      <h2>What you’ll need</h2>
+    {needed && <section className="needed">
+      <h2>{needed.heading}</h2>
       <ul className="needed-list">
-        <li>Approximate date and time</li>
-        <li>Amount involved</li>
-        <li>Payment method</li>
-        <li>Transaction/reference details, if available</li>
-        <li>Screenshots, messages or other evidence</li>
+        {needed.items.map(item => <li key={item}>{item}</li>)}
       </ul>
       <p className="helper">Don’t have everything? That’s okay. You can continue and add missing information later.</p>
-    </section>
-    <SafetyNote />
+    </section>}
+    {showSafetyNote && <SafetyNote />}
     <StepActionBar
       onBack={() => navigate('/')}
       primaryLabel="Continue to details"
@@ -99,6 +103,27 @@ export function ReportStart() {
       primaryDisabled={!selected}
     />
   </main>
+}
+
+export function ReportStart() {
+  return <EntryStartShell
+    category="financial-fraud"
+    title="Let’s prepare your report"
+    supportingText="You can describe what happened in your own words, or enter the details yourself."
+    assistedPath="/report/assisted"
+    manualPath="/report/manual"
+    needed={{
+      heading: 'What you’ll need',
+      items: [
+        'Approximate date and time',
+        'Amount involved',
+        'Payment method',
+        'Transaction/reference details, if available',
+        'Screenshots, messages or other evidence',
+      ],
+    }}
+    showSafetyNote
+  />
 }
 
 const PAYMENT_KEYWORDS: [RegExp, string][] = [
@@ -131,13 +156,13 @@ function extractAmount(text: string): number | null {
   return bare ? Number(bare[1]) : null
 }
 
-function formatDemoDate(offsetDays: number): string {
+export function formatDemoDate(offsetDays: number): string {
   const date = new Date()
   date.setDate(date.getDate() + offsetDays)
   return date.toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })
 }
 
-function extractDate(text: string): string | null {
+export function extractDate(text: string): string | null {
   const explicit = text.match(/\bon\s+(\d{1,2}(?:st|nd|rd|th)?\s+[A-Za-z]+)\b/i)
   if (explicit) return explicit[1]
   if (/\b(yesterday|last night)\b/i.test(text)) return formatDemoDate(-1)
@@ -145,7 +170,7 @@ function extractDate(text: string): string | null {
   return null
 }
 
-function extractApproximateTime(text: string): string | null {
+export function extractApproximateTime(text: string): string | null {
   const match = text.match(/\b(\d{1,2}(:\d{2})?\s?(am|pm)|morning|afternoon|evening|night)\b/i)
   return match ? match[0] : null
 }
