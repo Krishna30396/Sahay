@@ -2,6 +2,7 @@ import { FormEvent, useState } from 'react'
 import { Link, RouterProvider, useRouter } from './router'
 import { IncidentProvider } from './incident'
 import { NotFound, ReportAssisted, ReportAssistedReview, ReportManual, ReportStart } from './report'
+import { ReportEvidence } from './evidence'
 
 type ModalKind = 'steps' | 'info' | 'track' | 'category' | null
 
@@ -77,6 +78,7 @@ function Screens({ setModal }: { setModal: (kind: ModalKind) => void }) {
     case '/report/start': return <ReportStart />
     case '/report/assisted': return <ReportAssisted />
     case '/report/assisted/review': return <ReportAssistedReview />
+    case '/report/evidence': return <ReportEvidence />
     case '/report/manual': return <ReportManual />
     default: return <NotFound />
   }

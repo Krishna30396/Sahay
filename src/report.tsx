@@ -78,7 +78,7 @@ const CONTACT_KEYWORDS: [RegExp, string][] = [
   [/\bemail\b/i, 'Email'],
 ]
 
-const MISSING_LABELS: Record<string, string> = {
+export const MISSING_LABELS: Record<string, string> = {
   amount: 'amount',
   paymentMethod: 'payment method',
   approximateTime: 'approximate time',
@@ -206,7 +206,10 @@ export function ReportAssistedReview() {
       </p>}
       {!confirmed
         ? <button className="button primary" type="submit">Confirm these details <Arrow /></button>
-        : <p className="confirmation">Details confirmed. The next step (evidence upload) isn’t built yet in this prototype.</p>}
+        : <div className="confirmation-block">
+            <p className="confirmation">Details confirmed.</p>
+            <button className="button primary" type="button" onClick={() => navigate('/report/evidence')}>Continue to evidence <Arrow /></button>
+          </div>}
     </form>
   </main>
 }

@@ -1,5 +1,19 @@
 import { createContext, ReactNode, useContext, useState } from 'react'
 
+export type EvidenceType = 'transaction' | 'conversation' | 'contact' | 'website' | 'other'
+
+export interface EvidenceItem {
+  id: string
+  type: EvidenceType
+  fileName?: string
+  mimeType?: string
+  size?: number
+  previewUrl?: string
+  description?: string
+  source?: 'user' | 'ai-suggested'
+  confirmed?: boolean
+}
+
 export interface IncidentData {
   incidentType: string
   amount: string
@@ -13,7 +27,7 @@ export interface IncidentData {
   suspectedImpersonation: boolean
   description: string
   timeline: string
-  evidence: string[]
+  evidenceItems: EvidenceItem[]
   missingInformation: string[]
 }
 
@@ -31,7 +45,7 @@ export function emptyIncident(): IncidentData {
     suspectedImpersonation: false,
     description: '',
     timeline: '',
-    evidence: [],
+    evidenceItems: [],
     missingInformation: [],
   }
 }
