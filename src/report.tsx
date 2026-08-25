@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { Link, useRouter } from './router'
-import { ReportIncident, useReport } from './reportState'
+import { ReportIncident, missingInformationLabel, useReport } from './reportState'
 
 const Arrow = () => <span aria-hidden="true">→</span>
 
@@ -33,12 +33,31 @@ export function StepActionBar({ onBack, backLabel = '← Back', primaryLabel, on
   </div>
 }
 
+export function MissingInfoNote({ missing, onAddDetails }: { missing: string[]; onAddDetails: () => void }) {
+  if (missing.length === 0) return null
+  return <section className="missing-note">
+    <p className="missing-note-title">You can still continue</p>
+    <p className="missing-note-sub">{missing.length} optional detail{missing.length === 1 ? '' : 's'} haven’t been provided</p>
+    <ul className="missing-note-list">{missing.map(key => <li key={key}>{missingInformationLabel(key)}</li>)}</ul>
+    <button type="button" className="link-button" onClick={onAddDetails}>Add details</button>
+  </section>
+}
+
 function SafetyNote() {
   return <p className="safety-note">If the payment happened just now, call <a href="tel:1930">1930</a> and your bank/payment provider immediately.</p>
 }
 
 export function ReportStart() {
   const { navigate } = useRouter()
+  const { setReport } = useReport()
+  const [selected, setSelected] = useState<'assisted' | 'manual' | null>(null)
+
+  const goNext = () => {
+    if (!selected) return
+    setReport(current => ({ ...current, entryMode: selected }))
+    navigate(selected === 'assisted' ? '/report/assisted' : '/report/manual')
+  }
+
   return <main className="report-page">
     <ProgressSteps current="Start" />
     <div className="report-intro">
@@ -46,20 +65,20 @@ export function ReportStart() {
       <p className="lead">You can describe what happened in your own words, or enter the details yourself.</p>
       <p className="reassurance">You will review everything before anything is submitted.</p>
     </div>
-    <div className="option-grid">
-      <article className="option-card recommended">
+    <div className="option-grid" role="radiogroup" aria-label="How would you like to provide details?">
+      <label className={`option-card recommended${selected === 'assisted' ? ' selected' : ''}`}>
+        <input className="option-card-radio" type="radio" name="entry-mode" value="assisted" checked={selected === 'assisted'} onChange={() => setSelected('assisted')} />
         <span className="badge">Recommended</span>
         <h2>Describe what happened</h2>
         <p>Tell us what happened in your own words. We’ll organize the information into the details needed for your report.</p>
         <p className="option-support">You review every detail before continuing.</p>
-        <button className="button primary" onClick={() => navigate('/report/assisted')}>Continue with assisted entry <Arrow /></button>
-      </article>
-      <article className="option-card">
+      </label>
+      <label className={`option-card${selected === 'manual' ? ' selected' : ''}`}>
+        <input className="option-card-radio" type="radio" name="entry-mode" value="manual" checked={selected === 'manual'} onChange={() => setSelected('manual')} />
         <h2>Enter the details yourself</h2>
         <p>Fill in the information step by step.</p>
         <p className="option-support">You’ll have full control over every field.</p>
-        <button className="button secondary" onClick={() => navigate('/report/manual')}>Continue with manual entry <Arrow /></button>
-      </article>
+      </label>
     </div>
     <section className="needed">
       <h2>What you’ll need</h2>
@@ -73,7 +92,12 @@ export function ReportStart() {
       <p className="helper">Don’t have everything? That’s okay. You can continue and add missing information later.</p>
     </section>
     <SafetyNote />
-    <StepActionBar onBack={() => navigate('/')} />
+    <StepActionBar
+      onBack={() => navigate('/')}
+      primaryLabel="Continue to details"
+      onPrimary={goNext}
+      primaryDisabled={!selected}
+    />
   </main>
 }
 
@@ -93,15 +117,32 @@ const CONTACT_KEYWORDS: [RegExp, string][] = [
 ]
 
 function extractAmount(text: string): number | null {
-  const withSymbol = text.match(/(?:₹|rs\.?|inr)\s?([\d,]+(?:\.\d+)?)/i)
-  if (withSymbol) return Number(withSymbol[1].replace(/,/g, ''))
+  const withSymbol = text.match(/(?:₹|rs\.?|inr)\s?([\d,]+(?:\.\d+)?)\s?(k|thousand|l|lakh|lakhs)?/i)
+  const withUnit = !withSymbol?.[2] ? text.match(/\b(\d+(?:\.\d+)?)\s?(k|thousand|l|lakh|lakhs)\b/i) : null
+  const match = withSymbol ?? withUnit
+  if (match) {
+    let value = Number(match[1].replace(/,/g, ''))
+    const unit = match[2]?.toLowerCase()
+    if (unit === 'k' || unit === 'thousand') value *= 1000
+    else if (unit === 'l' || unit === 'lakh' || unit === 'lakhs') value *= 100000
+    return value
+  }
   const bare = text.match(/\b(\d{3,7})\b/)
   return bare ? Number(bare[1]) : null
 }
 
+function formatDemoDate(offsetDays: number): string {
+  const date = new Date()
+  date.setDate(date.getDate() + offsetDays)
+  return date.toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })
+}
+
 function extractDate(text: string): string | null {
-  const match = text.match(/\bon\s+(\d{1,2}(?:st|nd|rd|th)?\s+[A-Za-z]+)\b/i)
-  return match ? match[1] : null
+  const explicit = text.match(/\bon\s+(\d{1,2}(?:st|nd|rd|th)?\s+[A-Za-z]+)\b/i)
+  if (explicit) return explicit[1]
+  if (/\b(yesterday|last night)\b/i.test(text)) return formatDemoDate(-1)
+  if (/\btoday\b/i.test(text)) return formatDemoDate(0)
+  return null
 }
 
 function extractApproximateTime(text: string): string | null {
@@ -139,18 +180,22 @@ export function ReportAssisted() {
   const { navigate } = useRouter()
   const { setReport } = useReport()
   const [text, setText] = useState('')
+  const [processing, setProcessing] = useState(false)
   const canContinue = text.trim().length > 0
 
   const submit = () => {
-    if (!canContinue) return
-    const extracted = mockExtractIncident(text)
-    setReport(current => ({
-      ...current,
-      entryMode: 'assisted',
-      incident: { ...current.incident, ...extracted.incident },
-      transaction: { transactionId: extracted.transactionId },
-    }))
-    navigate('/report/details')
+    if (!canContinue || processing) return
+    setProcessing(true)
+    setTimeout(() => {
+      const extracted = mockExtractIncident(text)
+      setReport(current => ({
+        ...current,
+        entryMode: 'assisted',
+        incident: { ...current.incident, ...extracted.incident },
+        transaction: { transactionId: extracted.transactionId },
+      }))
+      navigate('/report/details')
+    }, 700)
   }
 
   return <main className="report-page">
@@ -165,29 +210,124 @@ export function ReportAssisted() {
         id="incident-text"
         value={text}
         onChange={event => setText(event.target.value)}
-        placeholder="For example: On 20 August around 6 in the evening, I received a call from someone claiming to be from my bank. I shared an OTP and ₹15,000 was debited from my account via UPI."
+        placeholder="For example: I lost 50k from UPI yesterday after a call from someone claiming to be my bank."
       />
       <p className="helper">This is a prototype. We will never ask for real OTPs, passwords or account numbers — just describe what happened.</p>
+      {processing && <p className="helper processing-note">Organizing your details…</p>}
     </form>
     <StepActionBar
       onBack={() => navigate('/report/start')}
-      primaryLabel="Continue"
+      primaryLabel={processing ? 'Organizing your details…' : 'Continue to details'}
       onPrimary={submit}
-      primaryDisabled={!canContinue}
+      primaryDisabled={!canContinue || processing}
     />
   </main>
 }
 
-export function ReportManualRedirect() {
+interface ManualDraft {
+  amount: string
+  paymentMethod: string
+  date: string
+  approximateTime: string
+  contactMethod: string
+  impersonation: boolean
+  description: string
+  transactionId: string
+}
+
+export function ReportManualEntry() {
   const { navigate } = useRouter()
-  const { setReport } = useReport()
+  const { report, setReport } = useReport()
+  const [draft, setDraft] = useState<ManualDraft>(() => ({
+    amount: report.incident.amount != null ? String(report.incident.amount) : '',
+    paymentMethod: report.incident.paymentMethod ?? '',
+    date: report.incident.date ?? '',
+    approximateTime: report.incident.approximateTime ?? '',
+    contactMethod: report.incident.contactMethod ?? '',
+    impersonation: report.incident.impersonation === true,
+    description: report.incident.description,
+    transactionId: report.transaction.transactionId ?? '',
+  }))
 
-  useEffect(() => {
-    setReport(current => current.entryMode === 'manual' ? current : { ...current, entryMode: 'manual' })
+  const update = <K extends keyof ManualDraft>(key: K, value: ManualDraft[K]) => setDraft(current => ({ ...current, [key]: value }))
+
+  const submit = () => {
+    setReport(current => ({
+      ...current,
+      entryMode: 'manual',
+      incident: {
+        ...current.incident,
+        type: 'Financial fraud',
+        amount: draft.amount ? Number(draft.amount) : null,
+        paymentMethod: draft.paymentMethod || null,
+        date: draft.date || null,
+        approximateTime: draft.approximateTime || null,
+        contactMethod: draft.contactMethod || null,
+        impersonation: draft.impersonation,
+        description: draft.description,
+      },
+      transaction: { transactionId: draft.transactionId || null },
+    }))
     navigate('/report/details')
-  }, [])
+  }
 
-  return null
+  return <main className="report-page">
+    <ProgressSteps current="Details" />
+    <div className="report-intro">
+      <h1>Enter the details yourself</h1>
+      <p className="lead">Fill in what you know. You can leave anything blank and add it later.</p>
+    </div>
+    <form className="review-form" onSubmit={event => { event.preventDefault(); submit() }}>
+      <div className="field-grid">
+        <label>Amount involved (₹)
+          <input inputMode="numeric" type="number" value={draft.amount} onChange={e => update('amount', e.target.value)} placeholder="Not provided yet" />
+        </label>
+        <label>Payment method
+          <select value={draft.paymentMethod} onChange={e => update('paymentMethod', e.target.value)}>
+            <option value="">Not provided yet</option>
+            <option>UPI</option>
+            <option>Bank transfer</option>
+            <option>Card</option>
+            <option>Net banking</option>
+            <option>Wallet</option>
+            <option>Other</option>
+          </select>
+        </label>
+        <label>Date
+          <input value={draft.date} onChange={e => update('date', e.target.value)} placeholder="e.g. yesterday, 20 August" />
+        </label>
+        <label>Approximate time
+          <input value={draft.approximateTime} onChange={e => update('approximateTime', e.target.value)} placeholder="e.g. evening, around 6 pm" />
+        </label>
+        <label>How were you contacted?
+          <select value={draft.contactMethod} onChange={e => update('contactMethod', e.target.value)}>
+            <option value="">Not provided yet</option>
+            <option>Phone call</option>
+            <option>SMS</option>
+            <option>WhatsApp</option>
+            <option>Email</option>
+            <option>In person</option>
+            <option>Not applicable</option>
+          </select>
+        </label>
+        <label>Transaction ID
+          <input value={draft.transactionId} onChange={e => update('transactionId', e.target.value)} placeholder="Not provided yet" />
+        </label>
+        <label className="checkbox-field">
+          <input type="checkbox" checked={draft.impersonation} onChange={e => update('impersonation', e.target.checked)} />
+          The person or message claimed to represent a bank, company or government office
+        </label>
+      </div>
+      <label className="description-field">Description
+        <textarea value={draft.description} onChange={e => update('description', e.target.value)} placeholder="Optional — add any extra detail" />
+      </label>
+    </form>
+    <StepActionBar
+      onBack={() => navigate('/report/start')}
+      primaryLabel="Continue to details"
+      onPrimary={submit}
+    />
+  </main>
 }
 
 export function NotFound() {

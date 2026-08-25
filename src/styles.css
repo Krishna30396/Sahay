@@ -3,7 +3,8 @@
 /* Report flow (Start / Details / Evidence / Review) */
 .report-page{width:min(800px,calc(100% - 48px));margin:0 auto;padding:32px 0 40px}
 .report-page .button{min-height:48px}
-.step-action-bar{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-top:32px;padding-top:20px;border-top:1px solid #d9dee2;background:#fff}
+.report-page input:not([type=checkbox]):not([type=radio]),.report-page select,.report-page textarea{min-height:48px}
+.step-action-bar{position:sticky;bottom:0;z-index:1;display:flex;align-items:center;justify-content:space-between;gap:16px;margin-top:32px;padding:16px 0;border-top:1px solid #d9dee2;background:#fff;box-shadow:0 -4px 10px rgba(17,52,110,.06)}
 .progress-steps{display:flex;flex-wrap:wrap;align-items:center;list-style:none;margin:0 0 28px;padding:0;gap:8px}
 .progress-steps li{display:flex;align-items:center;gap:8px;color:#5f6b73;font-size:13px;font-weight:700;white-space:nowrap}
 .progress-steps li:not(:last-child):after{content:"";width:24px;height:1px;background:#d9dee2;margin:0 4px}
@@ -17,13 +18,15 @@
 .report-intro .lead{margin:0 0 8px;color:#1d2d48;font-size:16px;line-height:24px;font-weight:400}
 .report-intro .reassurance{margin:0;color:#5f6b73;font-size:14px}
 .option-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;margin-bottom:32px}
-.option-card{position:relative;display:flex;flex-direction:column;padding:24px;background:#fff;border:1px solid #d9e4f2;border-radius:8px}
-.option-card.recommended{border-color:#12304a;background:#e8f0f5}
+.option-card{position:relative;display:flex;flex-direction:column;padding:24px;background:#fff;border:2px solid #d9e4f2;border-radius:8px;cursor:pointer}
+.option-card.recommended{border-color:#e8f0f5;background:#e8f0f5}
+.option-card.selected{border-color:#193e5c;background:#e8f0f5;box-shadow:0 0 0 1px #193e5c}
+.option-card-radio{position:absolute;width:1px;height:1px;margin:-1px;overflow:hidden;clip:rect(0,0,0,0)}
+.option-card-radio:focus-visible~*{outline:3px solid #f26722;outline-offset:3px}
 .badge{align-self:flex-start;margin-bottom:12px;padding:4px 10px;border-radius:20px;background:#12304a;color:#fff;font-size:12px;font-weight:700}
 .option-card h2{margin:0 0 8px;color:#071c50;font-size:20px}
 .option-card p{margin:0 0 8px;color:#1d2d48;font-size:14px;line-height:20px}
-.option-card .option-support{margin:0 0 20px;color:#5f6b73;font-size:13px}
-.option-card .button{margin-top:auto;align-self:flex-start}
+.option-card .option-support{margin:0;color:#5f6b73;font-size:13px}
 .needed{margin-bottom:20px;padding:24px;background:#fff;border:1px solid #d9dee2;border-radius:8px}
 .needed h2{margin:0 0 16px;color:#071c50;font-size:24px}
 .needed-list{margin:0 0 16px;padding:0;list-style:none;display:grid;gap:10px}
@@ -45,6 +48,18 @@
 .description-field{display:block;margin-bottom:20px}
 .confirmation{margin:0 0 20px;padding:14px 16px;border-radius:6px;background:#e9f7ef;color:#1c4b32;font-size:14px;font-weight:700}
 .source-tag{margin-left:6px;color:#5f6b73;font-size:11px;font-weight:400}
+.checkbox-field.standalone{margin-bottom:20px}
+.found-block,.still-needed-block{margin-bottom:20px}
+.found-block h2,.still-needed-block h2{margin:0 0 10px;color:#071c50;font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.03em}
+.still-needed-block h2{color:#5f6b73}
+.detail-field.found label{color:#12304a}
+.detail-field-helper{display:block;margin-top:4px;color:#5f6b73;font-size:12px;font-weight:400}
+
+/* Missing information note (Evidence / Review) */
+.missing-note{margin-bottom:20px;padding:16px 20px;background:#fff;border:1px solid #d9dee2;border-radius:8px}
+.missing-note-title{margin:0;color:#071c50;font-size:14px;font-weight:700}
+.missing-note-sub{margin:2px 0 8px;color:#5f6b73;font-size:13px}
+.missing-note-list{margin:0 0 10px;padding-left:20px;color:#1d2d48;font-size:13px;line-height:19px}
 
 /* Evidence step */
 .evidence-categories{display:flex;flex-direction:column;gap:8px;margin-top:4px}
@@ -54,7 +69,6 @@
 .category-text{flex:1;min-width:0}
 .category-actions{display:flex;flex:0 0 auto;flex-wrap:wrap;align-items:center;gap:10px 14px;padding-top:2px}
 .link-button{border:0;background:transparent;padding:0;color:#12304a;font-size:13px;font-weight:700;text-decoration:underline}
-.skipped-note{margin:0;color:#5f6b73;font-size:13px}
 .field-error{margin:6px 0 0;color:#b42318;font-size:13px}
 .contact-form{margin-top:10px}
 .contact-form input,.classify-body select{width:100%;min-height:42px;margin-bottom:10px;padding:10px 12px;border:1px solid #d9dee2;border-radius:6px;background:#fff;color:#172027;font:inherit}
@@ -72,7 +86,6 @@
 .added-state{flex:0 0 auto;color:#26734d;font-size:12px;font-weight:700}
 .evidence-actions{display:flex;flex-wrap:wrap;gap:6px 10px;flex:0 0 auto}
 .evidence-actions button{border:0;background:transparent;padding:0;color:#12304a;font-size:12px;font-weight:700;text-decoration:underline}
-.missing-list{margin:4px 0 0;padding-left:20px;color:#1d2d48;font-size:14px;line-height:20px}
 
 /* Review step */
 .review-summary{margin-bottom:12px;padding:18px 20px;background:#fff;border:1px solid #d9dee2;border-radius:8px}
@@ -83,6 +96,9 @@
 .review-fields dt{margin:0;color:#5f6b73;font-size:12px}
 .review-fields dd{margin:2px 0 0;color:#071c50;font-size:14px;font-weight:600}
 .review-evidence-list{margin:10px 0 0;padding-left:20px;color:#1d2d48;font-size:13px;line-height:19px}
+
+/* Submission step */
+.report-id{margin:4px 0 0;color:#12304a;font-size:22px;font-weight:800;letter-spacing:.02em}
 
 @media(max-width:768px){
   .report-page{width:min(800px,calc(100% - 32px))}
@@ -95,5 +111,5 @@
   .classify-panel{flex-direction:column}
   .evidence-card{flex-wrap:wrap}
   .evidence-actions{width:100%}
-  .step-action-bar{position:sticky;bottom:0;margin-top:24px;padding:14px 0;box-shadow:0 -4px 10px rgba(17,52,110,.08)}
+  .step-action-bar{margin-top:24px;padding:12px 0}
 }

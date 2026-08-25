@@ -1,8 +1,8 @@
 import { ChangeEvent, useRef, useState } from 'react'
 import { useRouter } from './router'
-import { EvidenceType, missingInformationLabel, useReport } from './reportState'
+import { EvidenceType, useReport } from './reportState'
 import type { EvidenceItem as EvidenceRecord } from './reportState'
-import { ProgressSteps, StepActionBar } from './report'
+import { MissingInfoNote, ProgressSteps, StepActionBar } from './report'
 
 const ALLOWED_MIME = ['image/jpeg', 'image/png', 'application/pdf']
 const MAX_SIZE = 10 * 1024 * 1024
@@ -85,13 +85,10 @@ function EvidenceItem({ item, onView, onReplace, onRemove }: {
   </li>
 }
 
-function CategoryRow({ section, error, dismissed, onPick, onDismiss, onUndoDismiss, detailsOpen, onOpenDetails, onSaveDetails, onCancelDetails }: {
+function CategoryRow({ section, error, onPick, detailsOpen, onOpenDetails, onSaveDetails, onCancelDetails }: {
   section: SectionConfig
   error: string | null
-  dismissed: boolean
   onPick: () => void
-  onDismiss: () => void
-  onUndoDismiss: () => void
   detailsOpen: boolean
   onOpenDetails: () => void
   onSaveDetails: (text: string) => void
@@ -112,12 +109,7 @@ function CategoryRow({ section, error, dismissed, onPick, onDismiss, onUndoDismi
       </form>}
     </div>
     {!detailsOpen && <div className="category-actions">
-      {dismissed
-        ? <p className="skipped-note">Not available. <button type="button" className="link-button" onClick={onUndoDismiss}>Add anyway</button></p>
-        : <>
-            <button type="button" className="button secondary" onClick={section.mode === 'file' ? onPick : onOpenDetails}>{section.actionLabel}</button>
-            <button type="button" className="link-button" onClick={onDismiss}>Don’t have this</button>
-          </>}
+      <button type="button" className="button secondary" onClick={section.mode === 'file' ? onPick : onOpenDetails}>{section.actionLabel}</button>
     </div>}
   </div>
 }
@@ -129,7 +121,6 @@ export function ReportEvidence() {
   const [uploadingSection, setUploadingSection] = useState<EvidenceType | null>(null)
   const [pending, setPending] = useState<PendingUpload | null>(null)
   const [errors, setErrors] = useState<Partial<Record<EvidenceType, string>>>({})
-  const [dismissed, setDismissed] = useState<Set<EvidenceType>>(new Set())
   const [openDetailsFor, setOpenDetailsFor] = useState<EvidenceType | null>(null)
 
   const pickFile = (type: EvidenceType) => {
@@ -175,8 +166,6 @@ export function ReportEvidence() {
       confirmed: true,
     }
     setReport(current => ({ ...current, evidence: [...current.evidence, item] }))
-    dismissed.delete(pending.selectedType)
-    setDismissed(new Set(dismissed))
     setPending(null)
   }
 
@@ -211,7 +200,8 @@ export function ReportEvidence() {
     <ProgressSteps current="Evidence" />
     <div className="report-intro">
       <h1>Add evidence</h1>
-      <p className="lead">Add anything that can help explain what happened. You don’t need to have everything.</p>
+      <p className="lead">Add anything that can help explain what happened.</p>
+      <p className="reassurance">Don’t have everything? That’s okay. You can continue.</p>
     </div>
 
     <section className="evidence-categories">
@@ -219,10 +209,7 @@ export function ReportEvidence() {
         key={section.type}
         section={section}
         error={errors[section.type] ?? null}
-        dismissed={dismissed.has(section.type)}
         onPick={() => pickFile(section.type)}
-        onDismiss={() => setDismissed(new Set(dismissed).add(section.type))}
-        onUndoDismiss={() => { const next = new Set(dismissed); next.delete(section.type); setDismissed(next) }}
         detailsOpen={openDetailsFor === section.type}
         onOpenDetails={() => setOpenDetailsFor(section.type)}
         onSaveDetails={text => saveDetails(section.type, text)}
@@ -267,9 +254,7 @@ export function ReportEvidence() {
         </ul>
       : <p className="helper">No evidence added yet.</p>}
 
-    {report.missingInformation.length > 0 && <p className="helper">
-      You can still continue. Missing: {report.missingInformation.map(missingInformationLabel).join(', ')}.
-    </p>}
+    <MissingInfoNote missing={report.missingInformation} onAddDetails={() => navigate('/report/details')} />
 
     <p className="safety-note">Use only information related to this incident. Do not upload passwords, OTPs, PINs or unrelated personal information.</p>
 
