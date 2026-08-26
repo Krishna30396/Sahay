@@ -46,6 +46,41 @@ export interface OtherIncidentInfo {
 
 export type ReportCategory = 'financial-fraud' | 'account-identity' | 'other-cyber'
 
+export type IdentityDocumentType = 'aadhaar' | 'pan' | 'driving-license' | 'voter-id' | 'passport'
+
+export type IdentitySource = 'digilocker' | 'manual-upload'
+
+export interface IdentityDocument {
+  type: IdentityDocumentType | null
+  issuer: string | null
+  fileName: string | null
+  fileSize: number | null
+  mimeType: string | null
+  uploaded: boolean
+  source: IdentitySource | null
+  status: 'not-provided' | 'demo-verified' | null
+}
+
+export interface ComplainantInfo {
+  name: string | null
+  mobile: string | null
+  mobileVerified: boolean
+  state: string | null
+  identityMethod: IdentitySource | null
+  identityDocument: IdentityDocument
+  identityConsent: { granted: boolean; purpose: string | null }
+}
+
+export interface SuspectInfo {
+  mobile: string | null
+  email: string | null
+  bankAccount: string | null
+  address: string | null
+  photograph: string | null
+  otherDocument: string | null
+  websiteOrHandle: string | null
+}
+
 export interface ReportState {
   id: string
   category: ReportCategory | null
@@ -53,8 +88,10 @@ export interface ReportState {
   incident: ReportIncident
   accountIdentity: AccountIdentityInfo
   otherIncident: OtherIncidentInfo
-  transaction: { transactionId: string | null }
+  transaction: { transactionId: string | null; merchantName: string | null; transactionDate: string | null }
   evidence: EvidenceItem[]
+  complainant: ComplainantInfo
+  suspect: SuspectInfo
   missingInformation: string[]
   status: { stage: string; createdAt: string; lastUpdated: string }
 }
@@ -94,8 +131,26 @@ export function emptyReportState(): ReportState {
       personOrAccountIdentifier: null,
       immediateRisk: null,
     },
-    transaction: { transactionId: null },
+    transaction: { transactionId: null, merchantName: null, transactionDate: null },
     evidence: [],
+    complainant: {
+      name: null,
+      mobile: null,
+      mobileVerified: false,
+      state: null,
+      identityMethod: null,
+      identityDocument: { type: null, issuer: null, fileName: null, fileSize: null, mimeType: null, uploaded: false, source: null, status: 'not-provided' },
+      identityConsent: { granted: false, purpose: null },
+    },
+    suspect: {
+      mobile: null,
+      email: null,
+      bankAccount: null,
+      address: null,
+      photograph: null,
+      otherDocument: null,
+      websiteOrHandle: null,
+    },
     missingInformation: [],
     status: { stage: 'draft', createdAt: now, lastUpdated: now },
   }
@@ -123,12 +178,10 @@ type DerivableState = Pick<ReportState, 'incident' | 'transaction' | 'category' 
 
 function deriveFinancialMissing(state: DerivableState): string[] {
   const missing: string[] = []
-  if (!state.incident.amount) missing.push('amount')
   if (!state.incident.paymentMethod) missing.push('paymentMethod')
   if (!state.incident.date) missing.push('date')
   if (!state.incident.approximateTime) missing.push('approximateTime')
   if (!state.incident.contactMethod) missing.push('contactMethod')
-  if (!state.transaction.transactionId) missing.push('transactionId')
   return missing
 }
 

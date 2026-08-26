@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from './router'
 import { useReport } from './reportState'
-import { EntryStartShell, ProgressSteps, StepActionBar, extractApproximateTime, extractDate } from './report'
+import { DescriptionField, EntryStartShell, ProgressSteps, StepActionBar, VoiceAssistedEntry, extractApproximateTime, extractDate } from './report'
+import { descriptionMeetsMinimum, generateStructuredDescription } from './validation'
 import {
   IMMEDIATE_RISK_OPTIONS,
   OTHER_ISSUE_TYPES,
@@ -50,6 +51,15 @@ export function OtherAssisted() {
     setProcessing(true)
     setTimeout(() => {
       const issueType = extractOtherIssueType(text)
+      const platform = extractOtherPlatform(text)
+      const date = extractDate(text)
+
+      const factsParts: string[] = []
+      if (issueType) factsParts.push(`issue ${issueType}`)
+      if (platform) factsParts.push(`platform ${platform}`)
+      if (date) factsParts.push(`date ${date}`)
+      const factsLine = factsParts.length ? `${factsParts.join('; ')}.` : null
+
       setReport(current => ({
         ...current,
         category: 'other-cyber',
@@ -57,42 +67,45 @@ export function OtherAssisted() {
         incident: {
           ...current.incident,
           subType: issueType,
-          date: extractDate(text),
+          date,
           approximateTime: extractApproximateTime(text),
-          description: text,
+          description: generateStructuredDescription(text, factsLine),
         },
         otherIncident: {
           ...current.otherIncident,
           issueType,
-          platform: extractOtherPlatform(text),
+          platform,
         },
       }))
       navigate('/report/other/assisted/review')
     }, 700)
   }
 
-  return <main className="report-page">
-    <ProgressSteps current="Details" />
-    <div className="report-intro">
-      <h1>Tell us what happened</h1>
-      <p className="lead">Describe the situation in your own words.</p>
-    </div>
-    <form className="assisted-form" onSubmit={event => { event.preventDefault(); submit() }}>
-      <label htmlFor="other-incident-text">What happened?</label>
-      <textarea
-        id="other-incident-text"
-        value={text}
-        onChange={event => setText(event.target.value)}
-        placeholder="Someone created a fake Instagram account using my name and photo and has been sending messages to people I know."
-      />
-      <p className="helper">This is a prototype. We will never ask for real passwords, OTPs or account credentials — just describe what happened.</p>
-      {processing && <p className="helper processing-note">Organizing your details…</p>}
-    </form>
-    <StepActionBar
+  const appendSpeech = (chunk: string) => setText(current => (current.trim() ? `${current.trim()} ${chunk}` : chunk))
+
+  return <main className="report-page report-page-wide">
+    <ProgressSteps current="Start" />
+    <VoiceAssistedEntry
+      needed={{
+        heading: 'What you’ll need',
+        items: [
+          'What happened',
+          'Which platform or app it happened on',
+          'Roughly when',
+          'Any profile, account or link involved',
+        ],
+      }}
+      title="Tell us what happened"
+      supportingText="Speak in your own words. We’ll turn it into text for your report."
+      placeholder="Someone created a fake Instagram account using my name and photo and has been sending messages to people I know."
+      text={text}
+      onTextChange={setText}
+      onAppendSpeech={appendSpeech}
       onBack={() => navigate('/report/other/start')}
-      primaryLabel={processing ? 'Organizing your details…' : 'Continue'}
-      onPrimary={submit}
-      primaryDisabled={!canContinue || processing}
+      onSubmit={submit}
+      canContinue={canContinue}
+      processing={processing}
+      manualPath="/report/other/manual"
     />
   </main>
 }
@@ -142,14 +155,17 @@ export function OtherAssistedReview() {
           <input value={report.otherIncident.personOrAccountIdentifier ?? ''} onChange={e => updateOther('personOrAccountIdentifier', e.target.value || null)} placeholder="Not provided yet" />
         </label>
       </div>
-      <label className="description-field">Description
-        <textarea value={report.incident.description} onChange={e => setReport(current => ({ ...current, incident: { ...current.incident, description: e.target.value } }))} />
-      </label>
+      <DescriptionField
+        value={report.incident.description}
+        onChange={value => setReport(current => ({ ...current, incident: { ...current.incident, description: value } }))}
+        generated
+      />
     </form>
     <StepActionBar
       onBack={() => navigate('/report/other/assisted')}
       primaryLabel="Continue"
       onPrimary={() => navigate('/report/other/details')}
+      primaryDisabled={!descriptionMeetsMinimum(report.incident.description)}
     />
   </main>
 }
@@ -309,9 +325,8 @@ export function OtherManual() {
         </label>
       </div>}
 
-      <label className="description-field">{draft.issueType === 'Suspicious message, link or website' ? 'What did it ask you to do?' : 'Describe what happened'}
-        <textarea value={draft.description} onChange={e => update('description', e.target.value)} placeholder="Optional — add any extra detail" />
-      </label>
+      {draft.issueType === 'Suspicious message, link or website' && <p className="helper">What did it ask you to do? Include this in the description below.</p>}
+      <DescriptionField value={draft.description} onChange={value => update('description', value)} />
     </form>
     <StepActionBar
       onBack={() => navigate('/report/other/start')}

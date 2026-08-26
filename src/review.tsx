@@ -1,7 +1,7 @@
 import { useRouter } from './router'
 import { useReport } from './reportState'
 import { MissingInfoNote, ProgressSteps, StepActionBar } from './report'
-import { detailsPath, evidencePath, submissionPath } from './reportRoutes'
+import { detailsPath, evidencePath } from './reportRoutes'
 
 function formatAmount(amount: number | null) {
   return amount != null ? `₹${amount.toLocaleString('en-IN')}` : 'Not provided yet'
@@ -17,6 +17,32 @@ function EvidenceSection({ report, onEdit }: { report: ReturnType<typeof useRepo
     {report.evidence.length > 0 && <ul className="review-evidence-list">
       {report.evidence.map(item => <li key={item.id}>{item.fileName ?? item.description ?? 'Evidence item'}</li>)}
     </ul>}
+  </section>
+}
+
+function SuspectReviewSection({ report, onEdit }: { report: ReturnType<typeof useReport>['report']; onEdit: () => void }) {
+  const { suspect } = report
+  const allRows: [string, string | null][] = [
+    ['Mobile number', suspect.mobile],
+    ['Email', suspect.email],
+    ['Bank account', suspect.bankAccount],
+    ['Address', suspect.address],
+    ['Photograph', suspect.photograph],
+    ['Other identifying document', suspect.otherDocument],
+    ['Website / social media handle', suspect.websiteOrHandle],
+  ]
+  const rows = allRows.filter(([, value]) => !!value)
+
+  if (rows.length === 0) return null
+
+  return <section className="review-summary">
+    <div className="review-summary-head">
+      <h2>Optional suspect information</h2>
+      <button type="button" className="link-button" onClick={onEdit}>Edit</button>
+    </div>
+    <dl className="review-fields">
+      {rows.map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}
+    </dl>
   </section>
 }
 
@@ -71,12 +97,14 @@ export function ReportReview() {
 
       <EvidenceSection report={report} onEdit={editEvidence} />
 
+      <SuspectReviewSection report={report} onEdit={editEvidence} />
+
       <MissingInfoNote missing={report.missingInformation} onAddDetails={editDetails} />
 
       <StepActionBar
         onBack={editEvidence}
-        primaryLabel="Continue to submission"
-        onPrimary={() => navigate(submissionPath(category))}
+        primaryLabel="Continue"
+        onPrimary={() => navigate('/report/identity')}
       />
     </main>
   }
@@ -123,12 +151,14 @@ export function ReportReview() {
 
       <EvidenceSection report={report} onEdit={editEvidence} />
 
+      <SuspectReviewSection report={report} onEdit={editEvidence} />
+
       <MissingInfoNote missing={report.missingInformation} onAddDetails={editDetails} />
 
       <StepActionBar
         onBack={editEvidence}
-        primaryLabel="Continue to submission"
-        onPrimary={() => navigate(submissionPath(category))}
+        primaryLabel="Continue"
+        onPrimary={() => navigate('/report/identity')}
       />
     </main>
   }
@@ -157,7 +187,6 @@ export function ReportReview() {
         <button type="button" className="link-button" onClick={editDetails}>Edit</button>
       </div>
       <dl className="review-fields">
-        <div><dt>Amount</dt><dd>{formatAmount(report.incident.amount)}</dd></div>
         <div><dt>Payment method</dt><dd>{report.incident.paymentMethod ?? 'Not provided yet'}</dd></div>
         <div><dt>Date</dt><dd>{report.incident.date ?? 'Not provided yet'}</dd></div>
         <div><dt>Approximate time</dt><dd>{report.incident.approximateTime ?? 'Not provided yet'}</dd></div>
@@ -177,22 +206,27 @@ export function ReportReview() {
 
     <section className="review-summary">
       <div className="review-summary-head">
-        <h2>Transaction</h2>
+        <h2>Financial details</h2>
         <button type="button" className="link-button" onClick={editDetails}>Edit</button>
       </div>
       <dl className="review-fields">
-        <div><dt>Transaction ID</dt><dd>{report.transaction.transactionId ?? 'Not provided yet'}</dd></div>
+        <div><dt>Bank / wallet / merchant</dt><dd>{report.transaction.merchantName ?? 'Not provided yet'}</dd></div>
+        <div><dt>Transaction ID / UTR</dt><dd>{report.transaction.transactionId ?? 'Not provided yet'}</dd></div>
+        <div><dt>Transaction date</dt><dd>{report.transaction.transactionDate ?? 'Not provided yet'}</dd></div>
+        <div><dt>Fraud amount</dt><dd>{formatAmount(report.incident.amount)}</dd></div>
       </dl>
     </section>
 
     <EvidenceSection report={report} onEdit={editEvidence} />
 
+    <SuspectReviewSection report={report} onEdit={editEvidence} />
+
     <MissingInfoNote missing={report.missingInformation} onAddDetails={editDetails} />
 
     <StepActionBar
       onBack={editEvidence}
-      primaryLabel="Continue to submission"
-      onPrimary={() => navigate(submissionPath(category))}
+      primaryLabel="Continue"
+      onPrimary={() => navigate('/report/identity')}
     />
   </main>
 }

@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from './router'
 import { useReport } from './reportState'
-import { EntryStartShell, ProgressSteps, StepActionBar, extractApproximateTime, extractDate } from './report'
+import { DescriptionField, EntryStartShell, ProgressSteps, StepActionBar, VoiceAssistedEntry, extractApproximateTime, extractDate } from './report'
+import { descriptionMeetsMinimum, generateStructuredDescription } from './validation'
 import {
   ACCESS_STATUS_OPTIONS,
   ACCOUNT_AFFECTED_TYPES,
@@ -61,6 +62,17 @@ export function AccountIdentityAssisted() {
     setProcessing(true)
     setTimeout(() => {
       const affectedType = extractAffectedType(text)
+      const platform = extractAccountPlatform(text)
+      const accessStatus = extractAccessStatus(text)
+      const date = extractDate(text)
+
+      const factsParts: string[] = []
+      if (affectedType) factsParts.push(`issue ${affectedType}`)
+      if (platform) factsParts.push(`platform ${platform}`)
+      if (accessStatus) factsParts.push(`access ${accessStatus}`)
+      if (date) factsParts.push(`date ${date}`)
+      const factsLine = factsParts.length ? `${factsParts.join('; ')}.` : null
+
       setReport(current => ({
         ...current,
         category: 'account-identity',
@@ -68,43 +80,46 @@ export function AccountIdentityAssisted() {
         incident: {
           ...current.incident,
           subType: affectedType,
-          date: extractDate(text),
+          date,
           approximateTime: extractApproximateTime(text),
-          description: text,
+          description: generateStructuredDescription(text, factsLine),
         },
         accountIdentity: {
           ...current.accountIdentity,
           affectedType,
-          accountPlatform: extractAccountPlatform(text),
-          accessStatus: extractAccessStatus(text),
+          accountPlatform: platform,
+          accessStatus,
         },
       }))
       navigate('/report/account-identity/assisted/review')
     }, 700)
   }
 
-  return <main className="report-page">
-    <ProgressSteps current="Details" />
-    <div className="report-intro">
-      <h1>Tell us what happened</h1>
-      <p className="lead">Describe the problem in your own words. You do not need to know the official category.</p>
-    </div>
-    <form className="assisted-form" onSubmit={event => { event.preventDefault(); submit() }}>
-      <label htmlFor="account-incident-text">What happened?</label>
-      <textarea
-        id="account-incident-text"
-        value={text}
-        onChange={event => setText(event.target.value)}
-        placeholder="My Instagram account was taken over yesterday. The person changed my email and started messaging my contacts."
-      />
-      <p className="helper">This is a prototype. We will never ask for real passwords, OTPs or account credentials — just describe what happened.</p>
-      {processing && <p className="helper processing-note">Organizing your details…</p>}
-    </form>
-    <StepActionBar
+  const appendSpeech = (chunk: string) => setText(current => (current.trim() ? `${current.trim()} ${chunk}` : chunk))
+
+  return <main className="report-page report-page-wide">
+    <ProgressSteps current="Start" />
+    <VoiceAssistedEntry
+      needed={{
+        heading: 'What you’ll need',
+        items: [
+          'Which account or platform is affected',
+          'Roughly when you noticed',
+          'Whether you can still access the account',
+          'How you found out',
+        ],
+      }}
+      title="Tell us what happened"
+      supportingText="Speak in your own words. We’ll turn it into text for your report."
+      placeholder="My Instagram account was taken over yesterday. The person changed my email and started messaging my contacts."
+      text={text}
+      onTextChange={setText}
+      onAppendSpeech={appendSpeech}
       onBack={() => navigate('/report/account-identity/start')}
-      primaryLabel={processing ? 'Organizing your details…' : 'Continue'}
-      onPrimary={submit}
-      primaryDisabled={!canContinue || processing}
+      onSubmit={submit}
+      canContinue={canContinue}
+      processing={processing}
+      manualPath="/report/account-identity/manual"
     />
   </main>
 }
@@ -157,14 +172,17 @@ export function AccountIdentityAssistedReview() {
           <input value={report.incident.date ?? ''} onChange={e => updateDate(e.target.value)} placeholder="Not provided yet" />
         </label>
       </div>
-      <label className="description-field">Description
-        <textarea value={report.incident.description} onChange={e => setReport(current => ({ ...current, incident: { ...current.incident, description: e.target.value } }))} />
-      </label>
+      <DescriptionField
+        value={report.incident.description}
+        onChange={value => setReport(current => ({ ...current, incident: { ...current.incident, description: value } }))}
+        generated
+      />
     </form>
     <StepActionBar
       onBack={() => navigate('/report/account-identity/assisted')}
       primaryLabel="Continue"
       onPrimary={() => navigate('/report/account-identity/details')}
+      primaryDisabled={!descriptionMeetsMinimum(report.incident.description)}
     />
   </main>
 }
@@ -267,9 +285,7 @@ export function AccountIdentityManual() {
         </label>}
       </div>}
 
-      <label className="description-field">Describe what happened
-        <textarea value={draft.description} onChange={e => update('description', e.target.value)} placeholder="Optional — add any extra detail" />
-      </label>
+      <DescriptionField value={draft.description} onChange={value => update('description', value)} />
     </form>
     <StepActionBar
       onBack={() => navigate('/report/account-identity/start')}

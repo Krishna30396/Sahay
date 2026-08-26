@@ -1,4 +1,4 @@
-import { FormEvent, useState } from 'react'
+import { FormEvent, ReactElement, useState } from 'react'
 import { Link, RouterProvider, useRouter } from './router'
 import { ReportProvider } from './reportState'
 import { NotFound, ReportAssisted, ReportManualEntry, ReportStart } from './report'
@@ -7,6 +7,9 @@ import { ReportEvidence } from './evidence'
 import { ReportReview } from './review'
 import { ReportSubmission } from './submission'
 import { ReportStatus } from './status'
+import { ConfirmYourDetails, IdentityDocumentUpload } from './identity'
+import { DigiLockerConfirm, DigiLockerConsent, DigiLockerDocuments, DigiLockerSuccess, DigiLockerTransition } from './digilocker'
+import { FinalReview } from './finalReview'
 import { AccountIdentityAssisted, AccountIdentityAssistedReview, AccountIdentityManual, AccountIdentityStart } from './accountIdentity'
 import { OtherAssisted, OtherAssistedReview, OtherManual, OtherStart } from './otherCyber'
 
@@ -21,6 +24,53 @@ function HeroArtwork() {
 function CardIllustration({ type }: { type: 'money' | 'identity' | 'other' }) {
   const images = { money: '/assets/money-fraud.png', identity: '/assets/identity-misuse.png', other: '/assets/other-cyber-issue.png' }
   return <div className="card-art" aria-hidden="true"><img src={images[type]} alt="" /></div>
+}
+
+function iconProps() {
+  return { viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 1.8, strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const, 'aria-hidden': true }
+}
+
+function MessageIcon() {
+  return <svg {...iconProps()}><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8z" /></svg>
+}
+function CheckSquareIcon() {
+  return <svg {...iconProps()}><polyline points="9 11 12 14 22 4" /><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" /></svg>
+}
+function FolderIcon() {
+  return <svg {...iconProps()}><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" /></svg>
+}
+function SearchIcon() {
+  return <svg {...iconProps()}><circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" /></svg>
+}
+function SendIcon() {
+  return <svg {...iconProps()}><line x1="22" y1="2" x2="11" y2="13" /><polygon points="22 2 15 22 11 13 2 9 22 2" /></svg>
+}
+
+const NEXT_STEPS: { icon: () => ReactElement; label: string; tone: 'blue' | 'orange' }[] = [
+  { icon: MessageIcon, label: 'Tell us what happened', tone: 'blue' },
+  { icon: CheckSquareIcon, label: 'Check the details', tone: 'blue' },
+  { icon: FolderIcon, label: 'Add relevant evidence', tone: 'orange' },
+  { icon: SearchIcon, label: 'Review your report', tone: 'blue' },
+  { icon: SendIcon, label: 'Submit when you’re ready', tone: 'orange' },
+]
+
+function NextSteps() {
+  return <section className="next-steps container">
+    <p className="next-steps-title">What happens next</p>
+    <div className="next-steps-row">
+      {NEXT_STEPS.map((step, index) => {
+        const Icon = step.icon
+        return <div className="next-step" key={step.label}>
+          <span className={`next-step-icon tone-${step.tone}`}>
+            <span className="next-step-num" aria-hidden="true">{index + 1}</span>
+            <Icon />
+          </span>
+          <p>{step.label}</p>
+        </div>
+      })}
+    </div>
+    <p className="next-steps-pill">✓ You’ll see everything before anything is submitted.</p>
+  </section>
 }
 
 function Modal({ kind, onClose }: { kind: ModalKind; onClose: () => void }) {
@@ -70,6 +120,7 @@ function Landing({ setModal }: { setModal: (kind: ModalKind) => void }) {
       </div>
     </section>
     <section className="emergency"><div className="container emergency-inner"><div><p className="eyebrow">IF MONEY WAS JUST TRANSFERRED</p><h2>Call 1930 immediately.</h2><p>If you have just experienced financial cyber fraud, contact 1930 and your bank or payment provider as soon as possible.</p></div><div className="actions"><a className="button primary" href="tel:1930">Call 1930</a><button className="text-link" onClick={() => setModal('steps')}>What should I do first? <Arrow /></button></div></div></section>
+    <NextSteps />
     <section className="track container"><div><h2>Already reported?</h2><p>Check your report and understand what happens next.</p></div><button className="button secondary" onClick={() => setModal('track')}>Track a report <Arrow /></button></section>
     <section className="help container" id="help"><h2>Need help?</h2><div className="help-grid"><button onClick={() => setModal('info')}>What information should I keep? <Arrow /></button><button onClick={() => setModal('steps')}>What should I do immediately? <Arrow /></button><button onClick={() => setModal('info')}>What happens to my report? <Arrow /></button></div></section>
   </main>
@@ -84,7 +135,16 @@ function Screens({ setModal }: { setModal: (kind: ModalKind) => void }) {
     case '/report/details': return <ReportDetails />
     case '/report/evidence': return <ReportEvidence />
     case '/report/review': return <ReportReview />
+    case '/report/identity': return <ConfirmYourDetails />
+    case '/report/identity/upload': return <IdentityDocumentUpload />
+    case '/report/identity/digilocker': return <DigiLockerTransition />
+    case '/report/identity/digilocker/consent': return <DigiLockerConsent />
+    case '/report/identity/digilocker/documents': return <DigiLockerDocuments />
+    case '/report/identity/digilocker/confirm': return <DigiLockerConfirm />
+    case '/report/identity/digilocker/success': return <DigiLockerSuccess />
+    case '/report/final-review': return <FinalReview />
     case '/report/submission': return <ReportSubmission />
+    case '/report/status': return <ReportStatus />
     case '/report/manual': return <ReportManualEntry />
 
     case '/report/account-identity/start': return <AccountIdentityStart />

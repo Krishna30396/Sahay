@@ -1,6 +1,6 @@
 import { ChangeEvent, useMemo, useRef, useState } from 'react'
 import { useRouter } from './router'
-import { EvidenceType, ReportCategory, useReport } from './reportState'
+import { EvidenceType, ReportCategory, SuspectInfo, useReport } from './reportState'
 import type { EvidenceItem as EvidenceRecord } from './reportState'
 import { MissingInfoNote, ProgressSteps, StepActionBar } from './report'
 import { detailsPath, reviewPath } from './reportRoutes'
@@ -153,6 +153,46 @@ function CategoryRow({ section, error, onPick, detailsOpen, onOpenDetails, onSav
   </div>
 }
 
+function SuspectSection({ suspect, onChange }: { suspect: SuspectInfo; onChange: <K extends keyof SuspectInfo>(key: K, value: SuspectInfo[K]) => void }) {
+  const hasAny = Object.values(suspect).some(v => !!v)
+  const [open, setOpen] = useState(hasAny)
+
+  if (!open) {
+    return <section className="suspect-section">
+      <h2>Do you know anything about the person involved?</h2>
+      <button type="button" className="button secondary" onClick={() => setOpen(true)}>+ Add suspect information</button>
+    </section>
+  }
+
+  return <section className="suspect-section">
+    <h2>Do you know anything about the person involved?</h2>
+    <p className="helper">Only add information you know. All of this is optional and will never block submission.</p>
+    <div className="field-grid">
+      <label>Suspect mobile number
+        <input value={suspect.mobile ?? ''} onChange={e => onChange('mobile', e.target.value || null)} placeholder="Not provided" />
+      </label>
+      <label>Suspect email
+        <input value={suspect.email ?? ''} onChange={e => onChange('email', e.target.value || null)} placeholder="Not provided" />
+      </label>
+      <label>Suspect bank account
+        <input value={suspect.bankAccount ?? ''} onChange={e => onChange('bankAccount', e.target.value || null)} placeholder="Not provided" />
+      </label>
+      <label>Suspect address
+        <input value={suspect.address ?? ''} onChange={e => onChange('address', e.target.value || null)} placeholder="Not provided" />
+      </label>
+      <label>Suspect photograph
+        <input value={suspect.photograph ?? ''} onChange={e => onChange('photograph', e.target.value || null)} placeholder="Describe or reference a file you have" />
+      </label>
+      <label>Other identifying document
+        <input value={suspect.otherDocument ?? ''} onChange={e => onChange('otherDocument', e.target.value || null)} placeholder="Describe or reference a file you have" />
+      </label>
+      <label>Suspected website / social media handle
+        <input value={suspect.websiteOrHandle ?? ''} onChange={e => onChange('websiteOrHandle', e.target.value || null)} placeholder="Not provided" />
+      </label>
+    </div>
+  </section>
+}
+
 export function ReportEvidence() {
   const { navigate } = useRouter()
   const { report, setReport } = useReport()
@@ -242,12 +282,16 @@ export function ReportEvidence() {
     else pickFile(item.type)
   }
 
+  const updateSuspect = <K extends keyof SuspectInfo>(key: K, value: SuspectInfo[K]) =>
+    setReport(current => ({ ...current, suspect: { ...current.suspect, [key]: value } }))
+
+  const hasEvidence = report.evidence.length > 0
+
   return <main className="report-page">
     <ProgressSteps current="Evidence" />
     <div className="report-intro">
       <h1>Add evidence</h1>
-      <p className="lead">Add anything that can help explain what happened.</p>
-      <p className="reassurance">Don’t have everything? That’s okay. You can continue.</p>
+      <p className="lead">You don’t need every type of evidence. Add all relevant evidence you have.</p>
     </div>
 
     <section className="evidence-categories">
@@ -288,7 +332,7 @@ export function ReportEvidence() {
       </div>
     </section>}
 
-    {report.evidence.length > 0
+    {hasEvidence
       ? <ul className="evidence-list">
           {report.evidence.map(item => <EvidenceItem
             key={item.id}
@@ -299,9 +343,11 @@ export function ReportEvidence() {
             onRemove={() => removeItem(item)}
           />)}
         </ul>
-      : <p className="helper">No evidence added yet.</p>}
+      : <p className="field-error">Add at least one piece of relevant evidence before continuing.</p>}
 
     <MissingInfoNote missing={report.missingInformation} onAddDetails={() => navigate(detailsPath(category))} />
+
+    <SuspectSection suspect={report.suspect} onChange={updateSuspect} />
 
     <p className="safety-note">Use only information related to this incident. Do not upload passwords, OTPs, PINs or unrelated personal information.</p>
 
@@ -309,6 +355,7 @@ export function ReportEvidence() {
       onBack={() => navigate(detailsPath(category))}
       primaryLabel="Continue to review"
       onPrimary={() => navigate(reviewPath(category))}
+      primaryDisabled={!hasEvidence}
     />
   </main>
 }
