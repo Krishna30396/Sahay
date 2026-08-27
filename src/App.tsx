@@ -1,4 +1,4 @@
-import { FormEvent, ReactElement, useState } from 'react'
+import { ReactElement, useState } from 'react'
 import { Link, RouterProvider, useRouter } from './router'
 import { ReportProvider } from './reportState'
 import { NotFound, ReportAssisted, ReportManualEntry } from './report'
@@ -7,12 +7,13 @@ import { ReportEvidence } from './evidence'
 import { ReportReview } from './review'
 import { ReportSubmission } from './submission'
 import { ReportStatus } from './status'
+import { TrackReport } from './track'
 import { ConfirmYourDetails, IdentityDocumentUpload } from './identity'
 import { DigiLockerConfirm, DigiLockerConsent, DigiLockerDocuments, DigiLockerSuccess, DigiLockerTransition } from './digilocker'
 import { AccountIdentityAssisted, AccountIdentityAssistedReview, AccountIdentityManual } from './accountIdentity'
 import { OtherAssisted, OtherAssistedReview, OtherManual } from './otherCyber'
 
-type ModalKind = 'steps' | 'info' | 'track' | null
+type ModalKind = 'steps' | 'info' | null
 
 const Arrow = () => <span aria-hidden="true">→</span>
 
@@ -45,6 +46,20 @@ function SendIcon() {
   return <svg {...iconProps()}><line x1="22" y1="2" x2="11" y2="13" /><polygon points="22 2 15 22 11 13 2 9 22 2" /></svg>
 }
 
+function ShieldBoltIcon() {
+  return <svg {...iconProps()}><path d="M12 3l7 3v6c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6z" /><polyline points="13 8 10 13 13 13 11 17" /></svg>
+}
+function HeadsetIcon() {
+  return <svg {...iconProps()}><path d="M4 13a8 8 0 0 1 16 0" /><rect x="3" y="13" width="4" height="6" rx="1.5" /><rect x="17" y="13" width="4" height="6" rx="1.5" /><path d="M19 19v1a3 3 0 0 1-3 3h-3" /></svg>
+}
+
+const ACT_NOW_STEPS: { image: string; title: string; description: string }[] = [
+  { image: '/assets/act-call.png', title: 'Call 1930', description: 'If money was just transferred, contact the financial-cyber-fraud helpline immediately.' },
+  { image: '/assets/act-bank.png', title: 'Contact your bank or payment provider', description: 'Ask about securing the transaction.' },
+  { image: '/assets/act-evidence.png', title: 'Preserve evidence', description: 'Keep messages, payment references and screenshots.' },
+  { image: '/assets/act-report.png', title: 'Report the incident', description: 'Use this prototype to understand the reporting journey.' },
+]
+
 const NEXT_STEPS: { icon: () => ReactElement; label: string; tone: 'blue' | 'orange' }[] = [
   { icon: MessageIcon, label: 'Tell us what happened', tone: 'blue' },
   { icon: CheckSquareIcon, label: 'Check the details', tone: 'blue' },
@@ -73,20 +88,36 @@ function NextSteps() {
 }
 
 function Modal({ kind, onClose }: { kind: ModalKind; onClose: () => void }) {
-  const [tracked, setTracked] = useState(false)
-  const submitTrack = (event: FormEvent) => { event.preventDefault(); setTracked(true) }
   if (!kind) return null
   return <div className="modal-backdrop" role="presentation" onMouseDown={onClose}>
-    <section className="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title" onMouseDown={e => e.stopPropagation()}>
+    <section className={`modal${kind === 'steps' ? ' modal-compact' : ''}`} role="dialog" aria-modal="true" aria-labelledby="modal-title" onMouseDown={e => e.stopPropagation()}>
       <button className="close" onClick={onClose} aria-label="Close dialog">×</button>
-      {kind === 'steps' && <><p className="eyebrow">ACT NOW</p><h2 id="modal-title">What should I do first?</h2><ol className="steps"><li><strong>Call 1930.</strong> If money was just transferred, contact the financial-cyber-fraud helpline immediately.</li><li><strong>Contact your bank or payment provider.</strong> Ask about securing the transaction.</li><li><strong>Preserve evidence.</strong> Keep messages, payment references and screenshots.</li><li><strong>Report the incident.</strong> Use this prototype to understand the reporting journey.</li></ol></>}
+      {kind === 'steps' && <div className="act-now-modal">
+        <h2 id="modal-title">What should I do first?</h2>
+        <p className="modal-sub">Follow these steps right away to protect yourself and increase the chances of recovery.</p>
+        <ol className="act-steps">
+          {ACT_NOW_STEPS.map((step, index) => {
+            return <li className="act-step" key={step.title}>
+              <span className="act-step-icon"><img src={step.image} alt="" aria-hidden="true" /></span>
+              <div className="act-step-body">
+                <div className="act-step-title-row"><span className="act-step-num">{index + 1}</span><h3>{step.title}</h3></div>
+                <p>{step.description}</p>
+              </div>
+            </li>
+          })}
+        </ol>
+        <div className="act-footer">
+          <div className="act-footer-item"><ShieldBoltIcon /><div><b>Acting quickly can help.</b><p>Report as soon as possible and keep your evidence safe.</p></div></div>
+          <div className="act-footer-divider" aria-hidden="true" />
+          <div className="act-footer-item"><HeadsetIcon /><div><b>Need help?</b><p>Call <a href="tel:1930">1930</a> or reach out to your bank.</p></div></div>
+        </div>
+      </div>}
       {kind === 'info' && <><p className="eyebrow">HELP</p><h2 id="modal-title">Information to keep</h2><p>Keep the approximate time of the incident, the amount involved, payment references, account or profile details used by the scammer, messages, links, and screenshots.</p><p>This prototype never asks you to submit real financial or identity information.</p></>}
-      {kind === 'track' && <><p className="eyebrow">DEMO TRACKING</p><h2 id="modal-title">Track your report</h2>{!tracked ? <form onSubmit={submitTrack}><label htmlFor="report-id">Enter your demo report ID</label><input id="report-id" defaultValue="NCRP-DEMO-48291" aria-describedby="demo-id" /><p id="demo-id" className="helper">Demo: use NCRP-DEMO-48291</p><button className="button primary" type="submit">Check status <Arrow /></button></form> : <div className="timeline"><div className="done"><b>Report submitted</b><span>23 Aug · 7:18 PM</span></div><div className="current"><b>Under review</b><span>Your demo complaint is awaiting review.</span></div><div><b>Forwarded to relevant authority</b></div><div><b>Further action</b></div></div>}</>}
     </section>
   </div>
 }
 
-function Header({ menuOpen, setMenuOpen, onTrack }: { menuOpen: boolean; setMenuOpen: (open: boolean) => void; onTrack: () => void }) {
+function Header({ menuOpen, setMenuOpen }: { menuOpen: boolean; setMenuOpen: (open: boolean) => void }) {
   const closeMenu = () => setMenuOpen(false)
   return <header className="site-header"><div className="container header-inner">
     <Link className="brand" to="/" onClick={closeMenu} aria-label="Sahay home"><span className="mark">S</span><span><b>Sahay</b><small>Cyber Fraud Assistance</small></span></Link>
@@ -94,7 +125,7 @@ function Header({ menuOpen, setMenuOpen, onTrack }: { menuOpen: boolean; setMenu
     <nav id="main-nav" className={menuOpen ? 'open' : ''} aria-label="Main navigation">
       <Link to="/" onClick={closeMenu}>Home</Link>
       <Link to="/#report" onClick={closeMenu}>Report</Link>
-      <button onClick={() => { onTrack(); closeMenu() }}>Track report</button>
+      <Link to="/track" onClick={closeMenu}>Track report</Link>
       <Link to="/#help" onClick={closeMenu}>Help</Link>
       <button className="language">English <span aria-hidden="true">⌄</span></button>
     </nav>
@@ -120,7 +151,7 @@ function Landing({ setModal }: { setModal: (kind: ModalKind) => void }) {
     </section>
     <section className="emergency"><div className="container emergency-inner"><div><p className="eyebrow">IF MONEY WAS JUST TRANSFERRED</p><h2>Call 1930 immediately.</h2><p>If you have just experienced financial cyber fraud, contact 1930 and your bank or payment provider as soon as possible.</p></div><div className="actions"><a className="button primary" href="tel:1930">Call 1930</a><button className="text-link" onClick={() => setModal('steps')}>What should I do first? <Arrow /></button></div></div></section>
     <NextSteps />
-    <section className="track container"><div><h2>Already reported?</h2><p>Check your report and understand what happens next.</p></div><button className="button secondary" onClick={() => setModal('track')}>Track a report <Arrow /></button></section>
+    <section className="track container"><div><h2>Already reported?</h2><p>Check your report and understand what happens next.</p></div><Link className="button secondary" to="/track">Track a report <Arrow /></Link></section>
     <section className="help container" id="help"><h2>Need help?</h2><div className="help-grid"><button onClick={() => setModal('info')}>What information should I keep? <Arrow /></button><button onClick={() => setModal('steps')}>What should I do immediately? <Arrow /></button><button onClick={() => setModal('info')}>What happens to my report? <Arrow /></button></div></section>
   </main>
 }
@@ -129,6 +160,7 @@ function Screens({ setModal }: { setModal: (kind: ModalKind) => void }) {
   const { path } = useRouter()
   switch (path) {
     case '/': return <Landing setModal={setModal} />
+    case '/track': return <TrackReport />
     case '/report/assisted': return <ReportAssisted />
     case '/report/details': return <ReportDetails />
     case '/report/evidence': return <ReportEvidence />
@@ -170,7 +202,7 @@ function Shell() {
   const [modal, setModal] = useState<ModalKind>(null)
   const [menuOpen, setMenuOpen] = useState(false)
   return <>
-    <Header menuOpen={menuOpen} setMenuOpen={setMenuOpen} onTrack={() => setModal('track')} />
+    <Header menuOpen={menuOpen} setMenuOpen={setMenuOpen} />
     <PrototypeBanner />
     <Screens setModal={setModal} />
     <Footer />
