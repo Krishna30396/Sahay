@@ -1,15 +1,5 @@
 import { ReportState } from './reportState'
 
-export const MIN_DESCRIPTION_LENGTH = 200
-
-export function descriptionLength(text: string): number {
-  return text.trim().length
-}
-
-export function descriptionMeetsMinimum(text: string): boolean {
-  return descriptionLength(text) >= MIN_DESCRIPTION_LENGTH
-}
-
 // Characters NCRP-style complaint forms typically reject in free-text fields.
 export const PROHIBITED_CHARS_REGEX = /[<>{}[\]\\^~`|]/g
 

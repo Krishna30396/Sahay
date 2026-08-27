@@ -1,10 +1,12 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link, useRouter } from './router'
-import { ReportCategory, ReportIncident, missingInformationLabel, useReport } from './reportState'
+import { ReportIncident, missingInformationLabel, useReport } from './reportState'
 import { messageForSpeechError, useSpeechRecognition } from './speech'
-import { MIN_DESCRIPTION_LENGTH, descriptionLength, descriptionMeetsMinimum, generateStructuredDescription } from './validation'
+import { generateStructuredDescription } from './validation'
 
 const Arrow = () => <span aria-hidden="true">→</span>
+
+const StepCheckGlyph = () => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.6} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><polyline points="5 13 10 18 19 7" /></svg>
 
 const STEPS = ['Start', 'Details', 'Evidence', 'Review', 'Submit'] as const
 type Step = typeof STEPS[number]
@@ -15,23 +17,27 @@ export function ProgressSteps({ current }: { current: Step }) {
     {STEPS.map((step, index) => {
       const status = index === currentIndex ? 'current' : index < currentIndex ? 'done' : 'upcoming'
       return <li key={step} className={status} aria-current={status === 'current' ? 'step' : undefined}>
-        <span className="step-index" aria-hidden="true">{status === 'done' ? '✓' : index + 1}</span>
+        <span className="step-index" aria-hidden="true">{status === 'done' ? <StepCheckGlyph /> : index + 1}</span>
         <span className="step-label">{step}</span>
       </li>
     })}
   </ol>
 }
 
-export function StepActionBar({ onBack, backLabel = '← Back', primaryLabel, onPrimary, primaryDisabled }: {
+export function StepActionBar({ onBack, backLabel = '← Back', primaryLabel, onPrimary, primaryDisabled, note = 'Your information is secure and confidential.' }: {
   onBack: () => void
   backLabel?: string
   primaryLabel?: string
   onPrimary?: () => void
   primaryDisabled?: boolean
+  note?: string
 }) {
   return <div className="step-action-bar">
-    <button type="button" className="button secondary" onClick={onBack}>{backLabel}</button>
-    {primaryLabel && <button type="button" className="button primary" onClick={onPrimary} disabled={primaryDisabled}>{primaryLabel} <Arrow /></button>}
+    <div className="step-action-bar-inner">
+      <button type="button" className="button secondary" onClick={onBack}>{backLabel}</button>
+      <span className="secure-note">🔒 {note}</span>
+      {primaryLabel && <button type="button" className="button primary" onClick={onPrimary} disabled={primaryDisabled}>{primaryLabel} <Arrow /></button>}
+    </div>
   </div>
 }
 
@@ -50,17 +56,11 @@ function SafetyNote() {
 }
 
 export function DescriptionField({ value, onChange, generated }: { value: string; onChange: (value: string) => void; generated?: boolean }) {
-  const count = descriptionLength(value)
-  const meetsMin = descriptionMeetsMinimum(value)
   return <div className="description-field-wrap">
     <label className="description-field">Description {generated && <span className="source-tag">Generated from your description</span>}
       <textarea value={value} onChange={event => onChange(event.target.value)} placeholder="Not provided yet" />
     </label>
     {generated && <p className="helper">Check that this accurately describes what happened.</p>}
-    <p className={meetsMin ? 'char-count' : 'char-count char-count-low'}>
-      {count} / {MIN_DESCRIPTION_LENGTH} characters — {MIN_DESCRIPTION_LENGTH} characters minimum.
-      {!meetsMin && ' Add more detail before continuing.'}
-    </p>
   </div>
 }
 
@@ -79,10 +79,8 @@ function MicGlyph() {
 
 function FileTextGlyph() {
   return <svg {...voiceIconProps()}>
-    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-    <polyline points="14 2 14 8 20 8" />
-    <line x1="16" y1="13" x2="8" y2="13" />
-    <line x1="16" y1="17" x2="8" y2="17" />
+    <path d="M13 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-8" />
+    <path d="M18.4 2.6a1.8 1.8 0 0 1 2.5 2.5L13 13l-3.3 1 1-3.3 7.7-8.1z" />
   </svg>
 }
 
@@ -98,13 +96,23 @@ function StopGlyph() {
   return <svg {...voiceIconProps()} fill="currentColor"><rect x="6" y="6" width="12" height="12" rx="2" /></svg>
 }
 
+function CheckCircleGlyph() {
+  return <svg viewBox="0 0 20 20" fill="none" aria-hidden="true">
+    <circle cx="10" cy="10" r="9" stroke="#0c43c1" strokeWidth="1.5" />
+    <path d="M6.3 10.3l2.3 2.3 5-5" stroke="#0c43c1" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+  </svg>
+}
+
 function NeededSidebar({ heading, items }: { heading: string; items: string[] }) {
   return <section className="needed voice-sidebar">
     <h2>{heading}</h2>
     <ul className="needed-list">
-      {items.map(item => <li key={item}>{item}</li>)}
+      {items.map(item => <li key={item}><CheckCircleGlyph />{item}</li>)}
     </ul>
-    <p className="helper">Don’t have everything? That’s okay. You can continue and add missing information later.</p>
+    <div className="needed-footer">
+      <p className="needed-footer-title">Missing something?</p>
+      <p className="needed-footer-sub">You can add it later.</p>
+    </div>
   </section>
 }
 
@@ -124,7 +132,7 @@ export function VoiceAssistedEntry({
   primaryLabel = 'Save & continue',
   processingLabel = 'Organizing your details…',
   manualPath,
-  manualDescription = 'Enter every detail step by step with full control over your report.',
+  manualDescription = 'Enter the details step by step.',
 }: {
   needed: { heading: string; items: string[] }
   title: string
@@ -145,6 +153,8 @@ export function VoiceAssistedEntry({
 }) {
   const speech = useSpeechRecognition(onAppendSpeech)
   const [elapsed, setElapsed] = useState(0)
+  const [transcriptFocused, setTranscriptFocused] = useState(false)
+  const textareaRef = useRef<HTMLTextAreaElement>(null)
 
   useEffect(() => {
     if (speech.state !== 'listening') return
@@ -172,33 +182,38 @@ export function VoiceAssistedEntry({
             <button
               type="button"
               className={`mic-circle${listening ? ' listening' : ''}`}
-              onClick={() => { if (!listening) speech.start() }}
+              onClick={() => { listening ? speech.stop() : speech.start() }}
               disabled={speech.state === 'unsupported'}
               aria-pressed={listening}
+              aria-label={listening ? 'Stop recording' : 'Start recording'}
             >
-              <MicGlyph />
+              {listening ? <StopGlyph /> : <MicGlyph />}
               {listening && <>
                 <span className="mic-wave" aria-hidden="true" />
                 <span className="mic-wave mic-wave-delay" aria-hidden="true" />
               </>}
             </button>
-            <p className="mic-caption">{micLabel}</p>
+            <p className={`mic-caption${listening ? ' listening' : ''}`}>{micLabel}</p>
             {listening && <span className="voice-timer">{formatTimer(elapsed)}</span>}
-            {listening && <button type="button" className="mic-stop-button" onClick={speech.stop} aria-label="Stop recording">
-              <StopGlyph />
-            </button>}
           </div>
           <div className="voice-card-transcript">
-            {listening && <div className="voice-status-row">
-              <span className="voice-status-live">● Listening…</span>
-            </div>}
-            <textarea
-              className="voice-transcript-text"
-              value={text}
-              onChange={event => onTextChange(event.target.value)}
-              placeholder={placeholder}
-            />
-            {speech.interimText && <p className="helper voice-interim">Hearing: “{speech.interimText}”</p>}
+            <div className="voice-transcript-box">
+              {!listening && !transcriptFocused && text.length === 0 && <div className="voice-transcript-empty" onClick={() => textareaRef.current?.focus()}>
+                <p className="voice-transcript-empty-title">Your words will appear here</p>
+                <p className="voice-transcript-empty-sub">Tap the microphone and tell us what happened.</p>
+                <hr className="voice-transcript-divider" />
+                <p className="voice-transcript-example">Example: “{placeholder}”</p>
+              </div>}
+              <textarea
+                ref={textareaRef}
+                className={`voice-transcript-text${!listening && !transcriptFocused && text.length === 0 ? ' is-collapsed' : ''}`}
+                value={listening && speech.interimText ? `${text}${text && !/\s$/.test(text) ? ' ' : ''}${speech.interimText}` : text}
+                onChange={event => onTextChange(event.target.value)}
+                onFocus={() => { setTranscriptFocused(true); speech.dismissError() }}
+                onBlur={() => setTranscriptFocused(false)}
+                readOnly={listening}
+              />
+            </div>
             {speech.state === 'error' && <p className="field-error">{messageForSpeechError(speech.errorCode)}</p>}
             {speech.state === 'unsupported' && <p className="helper">Voice input isn’t supported in this browser. Try Chrome or Edge, or type your description below.</p>}
             <p className="voice-tip">💡 You can review and edit this in the next step.</p>
@@ -211,98 +226,21 @@ export function VoiceAssistedEntry({
             <h2>Prefer to fill it in yourself?</h2>
             <p>{manualDescription}</p>
           </div>
-          <Link className="button secondary" to={manualPath}>Fill in manually <Arrow /></Link>
+          <Link className="button secondary" to={manualPath}>Fill manually <Arrow /></Link>
         </section>
       </div>
 
       <NeededSidebar heading={needed.heading} items={needed.items} />
     </div>
 
-    <div className="step-action-bar">
-      <button type="button" className="button secondary" onClick={onBack}>{backLabel}</button>
-      <span className="secure-note">🔒 Your information is secure and confidential.</span>
-      <button type="button" className="button primary" onClick={onSubmit} disabled={!canContinue || processing}>{processing ? processingLabel : primaryLabel} <Arrow /></button>
-    </div>
-  </>
-}
-
-export function EntryStartShell({ category, title, supportingText, assistedPath, manualPath, needed, showSafetyNote }: {
-  category: ReportCategory
-  title: string
-  supportingText: string
-  assistedPath: string
-  manualPath: string
-  needed?: { heading: string; items: string[] }
-  showSafetyNote?: boolean
-}) {
-  const { navigate } = useRouter()
-  const { setReport } = useReport()
-  const [selected, setSelected] = useState<'assisted' | 'manual' | null>(null)
-
-  const goNext = () => {
-    if (!selected) return
-    setReport(current => ({ ...current, category, entryMode: selected }))
-    navigate(selected === 'assisted' ? assistedPath : manualPath)
-  }
-
-  return <main className="report-page">
-    <ProgressSteps current="Start" />
-    <div className="report-intro">
-      <h1>{title}</h1>
-      <p className="lead">{supportingText}</p>
-      <p className="reassurance">You will review everything before anything is submitted.</p>
-    </div>
-    <div className="option-grid" role="radiogroup" aria-label="How would you like to provide details?">
-      <label className={`option-card recommended${selected === 'assisted' ? ' selected' : ''}`}>
-        <input className="option-card-radio" type="radio" name="entry-mode" value="assisted" checked={selected === 'assisted'} onChange={() => setSelected('assisted')} />
-        <span className="badge">Recommended</span>
-        <h2>Describe what happened</h2>
-        <p>Tell us what happened in your own words. We’ll organize the information into the details needed for your report.</p>
-        <p className="option-support">You review every detail before continuing.</p>
-      </label>
-      <label className={`option-card${selected === 'manual' ? ' selected' : ''}`}>
-        <input className="option-card-radio" type="radio" name="entry-mode" value="manual" checked={selected === 'manual'} onChange={() => setSelected('manual')} />
-        <h2>Enter the details yourself</h2>
-        <p>Fill in the information step by step.</p>
-        <p className="option-support">You’ll have full control over every field.</p>
-      </label>
-    </div>
-    {needed && <section className="needed">
-      <h2>{needed.heading}</h2>
-      <ul className="needed-list">
-        {needed.items.map(item => <li key={item}>{item}</li>)}
-      </ul>
-      <p className="helper">Don’t have everything? That’s okay. You can continue and add missing information later.</p>
-    </section>}
-    {showSafetyNote && <SafetyNote />}
     <StepActionBar
-      onBack={() => navigate('/')}
-      primaryLabel="Continue to details"
-      onPrimary={goNext}
-      primaryDisabled={!selected}
+      onBack={onBack}
+      backLabel={backLabel}
+      primaryLabel={processing ? processingLabel : primaryLabel}
+      onPrimary={onSubmit}
+      primaryDisabled={!canContinue || processing}
     />
-  </main>
-}
-
-export function ReportStart() {
-  return <EntryStartShell
-    category="financial-fraud"
-    title="Let’s prepare your report"
-    supportingText="You can describe what happened in your own words, or enter the details yourself."
-    assistedPath="/report/assisted"
-    manualPath="/report/manual"
-    needed={{
-      heading: 'What you’ll need',
-      items: [
-        'Approximate date and time',
-        'Amount involved',
-        'Payment method',
-        'Transaction/reference details, if available',
-        'Screenshots, messages or other evidence',
-      ],
-    }}
-    showSafetyNote
-  />
+  </>
 }
 
 const PAYMENT_KEYWORDS: [RegExp, string][] = [
@@ -359,8 +297,22 @@ function extractTransactionId(text: string): string | null {
   return match ? match[1] : null
 }
 
-function extractImpersonation(text: string): boolean | null {
-  return /bank official|customer care|police|government official|claiming to be|impersonat/i.test(text) ? true : null
+export const IMPERSONATION_OPTIONS = [
+  'Bank / financial institution',
+  'Government official',
+  'Police',
+  'Company customer care',
+  'Someone I know',
+  'Other / not sure',
+]
+
+function extractImpersonation(text: string): string | null {
+  if (/bank (official|representative)|claiming to be .*bank/i.test(text)) return 'Bank / financial institution'
+  if (/government official/i.test(text)) return 'Government official'
+  if (/\bpolice\b/i.test(text)) return 'Police'
+  if (/customer care/i.test(text)) return 'Company customer care'
+  if (/claiming to be|impersonat/i.test(text)) return 'Other / not sure'
+  return null
 }
 
 function mockExtractIncident(text: string): { incident: Partial<ReportIncident>; transactionId: string | null } {
@@ -406,6 +358,7 @@ export function ReportAssisted() {
       const extracted = mockExtractIncident(text)
       setReport(current => ({
         ...current,
+        category: 'financial-fraud',
         entryMode: 'assisted',
         incident: { ...current.incident, ...extracted.incident },
         transaction: { ...current.transaction, transactionId: extracted.transactionId },
@@ -418,6 +371,7 @@ export function ReportAssisted() {
 
   return <main className="report-page report-page-wide">
     <ProgressSteps current="Start" />
+    <SafetyNote />
     <VoiceAssistedEntry
       needed={{
         heading: 'What you’ll need',
@@ -431,11 +385,11 @@ export function ReportAssisted() {
       }}
       title="Tell us what happened"
       supportingText="Speak in your own words. We’ll turn it into text for your report."
-      placeholder="For example: I lost 50k from UPI yesterday after a call from someone claiming to be my bank."
+      placeholder="I lost ₹50,000 through a UPI scam."
       text={text}
       onTextChange={setText}
       onAppendSpeech={appendSpeech}
-      onBack={() => navigate('/report/start')}
+      onBack={() => navigate('/')}
       onSubmit={submit}
       canContinue={canContinue}
       processing={processing}
@@ -450,7 +404,7 @@ interface ManualDraft {
   date: string
   approximateTime: string
   contactMethod: string
-  impersonation: boolean
+  impersonation: string
   description: string
   transactionId: string
   merchantName: string
@@ -466,7 +420,7 @@ export function ReportManualEntry() {
     date: report.incident.date ?? '',
     approximateTime: report.incident.approximateTime ?? '',
     contactMethod: report.incident.contactMethod ?? '',
-    impersonation: report.incident.impersonation === true,
+    impersonation: report.incident.impersonation ?? '',
     description: report.incident.description,
     transactionId: report.transaction.transactionId ?? '',
     merchantName: report.transaction.merchantName ?? '',
@@ -478,6 +432,7 @@ export function ReportManualEntry() {
   const submit = () => {
     setReport(current => ({
       ...current,
+      category: 'financial-fraud',
       entryMode: 'manual',
       incident: {
         ...current.incident,
@@ -487,7 +442,7 @@ export function ReportManualEntry() {
         date: draft.date || null,
         approximateTime: draft.approximateTime || null,
         contactMethod: draft.contactMethod || null,
-        impersonation: draft.impersonation,
+        impersonation: draft.impersonation || null,
         description: draft.description,
       },
       transaction: {
@@ -553,15 +508,17 @@ export function ReportManualEntry() {
             <option>Not applicable</option>
           </select>
         </label>
-        <label className="checkbox-field">
-          <input type="checkbox" checked={draft.impersonation} onChange={e => update('impersonation', e.target.checked)} />
-          The person or message claimed to represent a bank, company or government office
+        <label>Claimed to represent
+          <select value={draft.impersonation} onChange={e => update('impersonation', e.target.value)}>
+            <option value="">Not applicable</option>
+            {IMPERSONATION_OPTIONS.map(o => <option key={o}>{o}</option>)}
+          </select>
         </label>
       </div>
       <DescriptionField value={draft.description} onChange={value => update('description', value)} />
     </form>
     <StepActionBar
-      onBack={() => navigate('/report/start')}
+      onBack={() => navigate('/report/assisted')}
       primaryLabel="Continue to details"
       onPrimary={submit}
     />

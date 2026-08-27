@@ -7,7 +7,7 @@ function base(category: ReportCategory | null | undefined) {
 }
 
 export function startPath(category: ReportCategory | null | undefined) {
-  return `${base(category)}/start`
+  return assistedPath(category)
 }
 
 export function assistedPath(category: ReportCategory | null | undefined) {

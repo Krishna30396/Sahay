@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from './router'
 import { useReport } from './reportState'
-import { DescriptionField, EntryStartShell, ProgressSteps, StepActionBar, VoiceAssistedEntry, extractApproximateTime, extractDate } from './report'
-import { descriptionMeetsMinimum, generateStructuredDescription } from './validation'
+import { DescriptionField, ProgressSteps, StepActionBar, VoiceAssistedEntry, extractApproximateTime, extractDate } from './report'
+import { generateStructuredDescription } from './validation'
 import {
   ACCESS_STATUS_OPTIONS,
   ACCOUNT_AFFECTED_TYPES,
@@ -13,16 +13,6 @@ import {
   accountShowsAccess,
   accountShowsMisuse,
 } from './categoryLabels'
-
-export function AccountIdentityStart() {
-  return <EntryStartShell
-    category="account-identity"
-    title="Let’s understand what happened"
-    supportingText="You can describe the problem in your own words, or enter the details yourself."
-    assistedPath="/report/account-identity/assisted"
-    manualPath="/report/account-identity/manual"
-  />
-}
 
 const ACCOUNT_PLATFORM_KEYWORDS: [RegExp, string][] = [
   [/whatsapp/i, 'WhatsApp'],
@@ -115,7 +105,7 @@ export function AccountIdentityAssisted() {
       text={text}
       onTextChange={setText}
       onAppendSpeech={appendSpeech}
-      onBack={() => navigate('/report/account-identity/start')}
+      onBack={() => navigate('/')}
       onSubmit={submit}
       canContinue={canContinue}
       processing={processing}
@@ -133,7 +123,7 @@ export function AccountIdentityAssistedReview() {
   const { report, setReport } = useReport()
 
   useEffect(() => {
-    if (report.entryMode !== 'assisted' || report.category !== 'account-identity') navigate('/report/account-identity/start')
+    if (report.entryMode !== 'assisted' || report.category !== 'account-identity') navigate('/report/account-identity/assisted')
   }, [report.entryMode, report.category, navigate])
 
   if (report.entryMode !== 'assisted' || report.category !== 'account-identity') return null
@@ -182,7 +172,6 @@ export function AccountIdentityAssistedReview() {
       onBack={() => navigate('/report/account-identity/assisted')}
       primaryLabel="Continue"
       onPrimary={() => navigate('/report/account-identity/details')}
-      primaryDisabled={!descriptionMeetsMinimum(report.incident.description)}
     />
   </main>
 }
@@ -288,7 +277,7 @@ export function AccountIdentityManual() {
       <DescriptionField value={draft.description} onChange={value => update('description', value)} />
     </form>
     <StepActionBar
-      onBack={() => navigate('/report/account-identity/start')}
+      onBack={() => navigate('/report/account-identity/assisted')}
       primaryLabel="Continue"
       onPrimary={submit}
       primaryDisabled={!canContinue}

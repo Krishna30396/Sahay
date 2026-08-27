@@ -1,7 +1,7 @@
 import { FormEvent, ReactElement, useState } from 'react'
 import { Link, RouterProvider, useRouter } from './router'
 import { ReportProvider } from './reportState'
-import { NotFound, ReportAssisted, ReportManualEntry, ReportStart } from './report'
+import { NotFound, ReportAssisted, ReportManualEntry } from './report'
 import { ReportDetails } from './details'
 import { ReportEvidence } from './evidence'
 import { ReportReview } from './review'
@@ -9,9 +9,8 @@ import { ReportSubmission } from './submission'
 import { ReportStatus } from './status'
 import { ConfirmYourDetails, IdentityDocumentUpload } from './identity'
 import { DigiLockerConfirm, DigiLockerConsent, DigiLockerDocuments, DigiLockerSuccess, DigiLockerTransition } from './digilocker'
-import { FinalReview } from './finalReview'
-import { AccountIdentityAssisted, AccountIdentityAssistedReview, AccountIdentityManual, AccountIdentityStart } from './accountIdentity'
-import { OtherAssisted, OtherAssistedReview, OtherManual, OtherStart } from './otherCyber'
+import { AccountIdentityAssisted, AccountIdentityAssistedReview, AccountIdentityManual } from './accountIdentity'
+import { OtherAssisted, OtherAssistedReview, OtherManual } from './otherCyber'
 
 type ModalKind = 'steps' | 'info' | 'track' | null
 
@@ -114,9 +113,9 @@ function Landing({ setModal }: { setModal: (kind: ModalKind) => void }) {
   return <main id="top">
     <section className="hero container"><div className="hero-top"><div className="hero-copy"><h1>What happened?</h1><p className="lead">We’ll help you take the right next step.</p><span className="orange-rule"></span><p className="intro">If you’ve experienced online financial fraud, account misuse or another cyber incident, start here.</p></div><HeroArtwork /></div>
       <div className="service-grid" id="report">
-        <article className="service-card featured"><CardIllustration type="money" /><div><h2>I lost money</h2><p>UPI, bank transfer, card, investment or online payment fraud.</p><Link to="/report/start">Start report <Arrow /></Link></div></article>
-        <article className="service-card identity"><CardIllustration type="identity" /><div><h2>My account or identity was misused</h2><p>Hacked accounts, impersonation or unauthorized access.</p><Link to="/report/account-identity/start">Get help <Arrow /></Link></div></article>
-        <article className="service-card other wide"><CardIllustration type="other" /><div><h2>Something else happened online</h2><p>Harassment, threats, fake profiles or another cyber issue.</p><Link to="/report/other/start">Find the right service <Arrow /></Link></div></article>
+        <article className="service-card featured"><CardIllustration type="money" /><div><h2>I lost money</h2><p>UPI, bank transfer, card, investment or online payment fraud.</p><Link to="/report/assisted">Start report <Arrow /></Link></div></article>
+        <article className="service-card identity"><CardIllustration type="identity" /><div><h2>My account or identity was misused</h2><p>Hacked accounts, impersonation or unauthorized access.</p><Link to="/report/account-identity/assisted">Get help <Arrow /></Link></div></article>
+        <article className="service-card other wide"><CardIllustration type="other" /><div><h2>Something else happened online</h2><p>Harassment, threats, fake profiles or another cyber issue.</p><Link to="/report/other/assisted">Find the right service <Arrow /></Link></div></article>
       </div>
     </section>
     <section className="emergency"><div className="container emergency-inner"><div><p className="eyebrow">IF MONEY WAS JUST TRANSFERRED</p><h2>Call 1930 immediately.</h2><p>If you have just experienced financial cyber fraud, contact 1930 and your bank or payment provider as soon as possible.</p></div><div className="actions"><a className="button primary" href="tel:1930">Call 1930</a><button className="text-link" onClick={() => setModal('steps')}>What should I do first? <Arrow /></button></div></div></section>
@@ -130,7 +129,6 @@ function Screens({ setModal }: { setModal: (kind: ModalKind) => void }) {
   const { path } = useRouter()
   switch (path) {
     case '/': return <Landing setModal={setModal} />
-    case '/report/start': return <ReportStart />
     case '/report/assisted': return <ReportAssisted />
     case '/report/details': return <ReportDetails />
     case '/report/evidence': return <ReportEvidence />
@@ -142,12 +140,10 @@ function Screens({ setModal }: { setModal: (kind: ModalKind) => void }) {
     case '/report/identity/digilocker/documents': return <DigiLockerDocuments />
     case '/report/identity/digilocker/confirm': return <DigiLockerConfirm />
     case '/report/identity/digilocker/success': return <DigiLockerSuccess />
-    case '/report/final-review': return <FinalReview />
     case '/report/submission': return <ReportSubmission />
     case '/report/status': return <ReportStatus />
     case '/report/manual': return <ReportManualEntry />
 
-    case '/report/account-identity/start': return <AccountIdentityStart />
     case '/report/account-identity/assisted': return <AccountIdentityAssisted />
     case '/report/account-identity/assisted/review': return <AccountIdentityAssistedReview />
     case '/report/account-identity/manual': return <AccountIdentityManual />
@@ -157,7 +153,6 @@ function Screens({ setModal }: { setModal: (kind: ModalKind) => void }) {
     case '/report/account-identity/submitted': return <ReportSubmission />
     case '/report/account-identity/status': return <ReportStatus />
 
-    case '/report/other/start': return <OtherStart />
     case '/report/other/assisted': return <OtherAssisted />
     case '/report/other/assisted/review': return <OtherAssistedReview />
     case '/report/other/manual': return <OtherManual />

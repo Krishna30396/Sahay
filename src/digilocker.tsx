@@ -3,6 +3,7 @@ import { useRouter } from './router'
 import { IdentityDocumentType, useReport } from './reportState'
 import { ProgressSteps, StepActionBar } from './report'
 import { ID_DOCUMENT_LABELS } from './identity'
+import { reviewPath } from './reportRoutes'
 
 /**
  * Prototype-only mock of the DigiLocker Requester flow. A production build of this
@@ -26,7 +27,7 @@ const MOCK_DOCUMENTS: MockIssuedDocument[] = [
 export function DigiLockerTransition() {
   const { navigate } = useRouter()
   return <main className="report-page">
-    <ProgressSteps current="Submit" />
+    <ProgressSteps current="Review" />
     <div className="report-intro">
       <h1>Continue to DigiLocker</h1>
       <p className="lead">DigiLocker will securely authenticate you and ask for your consent before sharing an identity document with Sahay.</p>
@@ -70,7 +71,7 @@ export function DigiLockerConsent() {
   }
 
   return <main className="report-page">
-    <ProgressSteps current="Submit" />
+    <ProgressSteps current="Review" />
     <section className="digilocker-panel digilocker-external">
       <p className="eyebrow">DIGILOCKER CONNECTION — PROTOTYPE</p>
       <h1>Share a document with Sahay</h1>
@@ -118,7 +119,7 @@ export function DigiLockerDocuments() {
   }
 
   return <main className="report-page">
-    <ProgressSteps current="Submit" />
+    <ProgressSteps current="Review" />
     <div className="report-intro">
       <h1>Choose a document</h1>
       <p className="lead">Select one issued identity document to share.</p>
@@ -176,7 +177,7 @@ export function DigiLockerConfirm() {
   }
 
   return <main className="report-page">
-    <ProgressSteps current="Submit" />
+    <ProgressSteps current="Review" />
     <div className="report-intro">
       <h1>Confirm document sharing</h1>
       <p className="lead">You are about to share this document with Sahay.</p>
@@ -215,7 +216,7 @@ export function DigiLockerSuccess() {
   const issuer = report.complainant.identityDocument.issuer
 
   return <main className="report-page">
-    <ProgressSteps current="Submit" />
+    <ProgressSteps current="Review" />
     <div className="report-intro">
       <h1>Identity document received</h1>
       <p className="lead">Your identity document was provided through DigiLocker.</p>
@@ -228,6 +229,6 @@ export function DigiLockerSuccess() {
       </dl>
       <p className="helper">Only the information needed for this complaint should be retained.</p>
     </section>
-    <StepActionBar onBack={() => navigate('/report/identity')} backLabel="← Back to Sahay" primaryLabel="Continue to final review" onPrimary={() => navigate('/report/final-review')} />
+    <StepActionBar onBack={() => navigate('/report/identity')} backLabel="← Back" primaryLabel="Continue to review" onPrimary={() => navigate(reviewPath(report.category))} />
   </main>
 }

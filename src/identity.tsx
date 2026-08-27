@@ -3,8 +3,9 @@ import { useRouter } from './router'
 import { IdentityDocumentType, useReport } from './reportState'
 import { ProgressSteps, StepActionBar } from './report'
 import { reviewPath } from './reportRoutes'
+import { SearchableSelect } from './searchableSelect'
 
-const DEMO_OTP = '123456'
+export const DEMO_OTP = '123456'
 export const ID_ALLOWED_MIME = ['image/jpeg', 'image/png']
 export const ID_MAX_SIZE = 5 * 1024 * 1024
 
@@ -18,13 +19,13 @@ export const ID_DOCUMENT_OPTIONS: { type: IdentityDocumentType; label: string }[
 
 export const ID_DOCUMENT_LABELS: Record<string, string> = Object.fromEntries(ID_DOCUMENT_OPTIONS.map(o => [o.type, o.label]))
 
-const INDIAN_STATES = [
+export const INDIAN_STATES = [
   'Andhra Pradesh', 'Arunachal Pradesh', 'Assam', 'Bihar', 'Chhattisgarh', 'Goa', 'Gujarat', 'Haryana',
   'Himachal Pradesh', 'Jharkhand', 'Karnataka', 'Kerala', 'Madhya Pradesh', 'Maharashtra', 'Manipur',
   'Meghalaya', 'Mizoram', 'Nagaland', 'Odisha', 'Punjab', 'Rajasthan', 'Sikkim', 'Tamil Nadu', 'Telangana',
   'Tripura', 'Uttar Pradesh', 'Uttarakhand', 'West Bengal', 'Andaman and Nicobar Islands', 'Chandigarh',
   'Dadra and Nagar Haveli and Daman and Diu', 'Delhi', 'Jammu and Kashmir', 'Ladakh', 'Lakshadweep', 'Puducherry',
-]
+].sort((a, b) => a.localeCompare(b))
 
 export function ConfirmYourDetails() {
   const { navigate } = useRouter()
@@ -96,14 +97,14 @@ export function ConfirmYourDetails() {
       ...current,
       complainant: { ...current.complainant, name: name.trim(), mobile, mobileVerified: true, state },
     }))
-    navigate('/report/final-review')
+    navigate(reviewPath(report.category))
   }
 
   return <main className="report-page">
-    <ProgressSteps current="Submit" />
+    <ProgressSteps current="Review" />
     <div className="report-intro">
       <h1>Confirm your details</h1>
-      <p className="lead">Your report is ready. Before you submit it, we need to confirm the person filing the complaint.</p>
+      <p className="lead">These details identify you as the person filing this report.</p>
     </div>
 
     <form className="review-form" onSubmit={event => event.preventDefault()}>
@@ -113,10 +114,7 @@ export function ConfirmYourDetails() {
           <input value={name} onChange={e => updateName(e.target.value)} placeholder="As it appears on your ID document" />
         </label>
         <label>State / location <span className="required-badge">Required</span>
-          <select value={state} onChange={e => updateState(e.target.value)}>
-            <option value="">Select a state</option>
-            {INDIAN_STATES.map(s => <option key={s}>{s}</option>)}
-          </select>
+          <SearchableSelect value={state} options={INDIAN_STATES} onChange={updateState} placeholder="Search for a state" />
         </label>
       </div>
 
@@ -164,7 +162,8 @@ export function ConfirmYourDetails() {
 
     <StepActionBar
       onBack={() => navigate(reviewPath(report.category))}
-      primaryLabel="Continue to final review"
+      backLabel="← Back to review"
+      primaryLabel="Save and return to review"
       onPrimary={submit}
       primaryDisabled={!canContinue}
     />
@@ -241,7 +240,7 @@ export function IdentityDocumentUpload() {
   }
 
   return <main className="report-page">
-    <ProgressSteps current="Submit" />
+    <ProgressSteps current="Review" />
     <div className="report-intro">
       <h1>Upload an identity document</h1>
       <p className="lead">Upload one accepted national ID document as a JPG, JPEG or PNG.</p>

@@ -1,9 +1,9 @@
 import { ReactNode, useEffect } from 'react'
-import { useRouter } from './router'
+import { Link, useRouter } from './router'
 import { AccountIdentityInfo, OtherIncidentInfo, ReportIncident, useReport } from './reportState'
-import { DescriptionField, ProgressSteps, StepActionBar } from './report'
+import { DescriptionField, IMPERSONATION_OPTIONS, ProgressSteps, StepActionBar } from './report'
 import { assistedReviewPath, evidencePath, manualPath, startPath } from './reportRoutes'
-import { descriptionMeetsMinimum, financialRequiredErrors } from './validation'
+import { financialRequiredErrors } from './validation'
 import {
   ACCESS_STATUS_OPTIONS,
   ACCOUNT_PLATFORM_OPTIONS,
@@ -17,6 +17,53 @@ import {
 
 function SourceTag() {
   return <span className="source-tag">From your description</span>
+}
+
+function iconProps() {
+  return { viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 1.8, strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const, 'aria-hidden': true }
+}
+
+function CheckBadgeGlyph() {
+  return <svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><circle cx="10" cy="10" r="9" fill="#1c4b32" /><path d="M6.3 10.3l2.3 2.3 5-5" stroke="#fff" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" /></svg>
+}
+
+function InfoDotGlyph() {
+  return <svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><circle cx="10" cy="10" r="8.5" stroke="currentColor" strokeWidth="1.4" /><line x1="10" y1="9" x2="10" y2="14" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" /><circle cx="10" cy="6.3" r="1" fill="currentColor" /></svg>
+}
+
+function PhoneGlyph() {
+  return <svg {...iconProps()}><path d="M4 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L14 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 2 6a2 2 0 0 1 2-2z" /></svg>
+}
+
+function GlobeGlyph() {
+  return <svg {...iconProps()}><circle cx="12" cy="12" r="9" /><line x1="3" y1="12" x2="21" y2="12" /><path d="M12 3a15 15 0 0 1 0 18a15 15 0 0 1 0-18z" /></svg>
+}
+
+function MailGlyph() {
+  return <svg {...iconProps()}><rect x="3" y="5" width="18" height="14" rx="2" /><path d="M3 7l9 6 9-6" /></svg>
+}
+
+function DotsGlyph() {
+  return <svg {...iconProps()} strokeWidth="2.4"><circle cx="5" cy="12" r="0.6" /><circle cx="12" cy="12" r="0.6" /><circle cx="19" cy="12" r="0.6" /></svg>
+}
+
+function HelpfulSidebar({ addPath }: { addPath: string }) {
+  const items: [ReactNode, string][] = [
+    [<PhoneGlyph />, 'Suspect mobile number'],
+    [<GlobeGlyph />, 'Website or social profile'],
+    [<MailGlyph />, 'Email address'],
+    [<DotsGlyph />, 'Other suspect details'],
+  ]
+  return <aside className="needed helpful-sidebar">
+    <h2>Helpful if you have it</h2>
+    <ul className="helpful-list">
+      {items.map(([icon, label]) => <li key={label} className="helpful-item">
+        {icon}
+        <span>{label}</span>
+        <Link className="helpful-add" to={addPath}>Add</Link>
+      </li>)}
+    </ul>
+  </aside>
 }
 
 const FIELD_HELPERS: Record<string, string> = {
@@ -58,90 +105,76 @@ export function ReportDetails() {
   const updateOther = <K extends keyof OtherIncidentInfo>(key: K, value: OtherIncidentInfo[K]) =>
     setReport(current => ({ ...current, otherIncident: { ...current.otherIncident, [key]: value } }))
 
-  const field = (key: string, hasValue: boolean, node: ReactNode) => ({ key, hasValue, node })
-
   let typeLabel = 'Incident type'
   let typeValue = report.incident.type ?? 'Financial fraud'
-  let fields: ReturnType<typeof field>[]
+  let extraFields: ReactNode[]
 
   if (category === 'account-identity') {
     typeLabel = 'Issue'
     typeValue = report.accountIdentity.affectedType ?? 'Not provided yet'
     const affectedType = report.accountIdentity.affectedType
-    fields = [
-      field('accountPlatform', !!report.accountIdentity.accountPlatform, <label>{accountPlatformFieldLabel(affectedType)} {isAssisted && report.accountIdentity.accountPlatform && <SourceTag />}
+    extraFields = [
+      <label key="accountPlatform">{accountPlatformFieldLabel(affectedType)} {isAssisted && report.accountIdentity.accountPlatform && <SourceTag />}
         <select value={report.accountIdentity.accountPlatform ?? ''} onChange={e => updateAccount('accountPlatform', e.target.value || null)}>
           <option value="">Not provided yet</option>
           {ACCOUNT_PLATFORM_OPTIONS.map(o => <option key={o}>{o}</option>)}
         </select>
         {!report.accountIdentity.accountPlatform && <span className="detail-field-helper">{FIELD_HELPERS.accountPlatform}</span>}
-      </label>),
-      field('date', !!report.incident.date, <label>Date {isAssisted && report.incident.date && <SourceTag />}
-        <input value={report.incident.date ?? ''} onChange={e => updateIncident('date', e.target.value || null)} placeholder="Not provided yet" />
-        {!report.incident.date && <span className="detail-field-helper">{FIELD_HELPERS.date}</span>}
-      </label>),
-      field('approximateTime', !!report.incident.approximateTime, <label>Approximate time {isAssisted && report.incident.approximateTime && <SourceTag />}
-        <input value={report.incident.approximateTime ?? ''} onChange={e => updateIncident('approximateTime', e.target.value || null)} placeholder="Not provided yet" />
-        {!report.incident.approximateTime && <span className="detail-field-helper">{FIELD_HELPERS.approximateTime}</span>}
-      </label>),
+      </label>,
     ]
     if (accountShowsAccess(affectedType)) {
-      fields.push(field('accessStatus', !!report.accountIdentity.accessStatus, <label>Can you still access the account? {isAssisted && report.accountIdentity.accessStatus && <SourceTag />}
+      extraFields.push(<label key="accessStatus">Can you still access the account? {isAssisted && report.accountIdentity.accessStatus && <SourceTag />}
         <select value={report.accountIdentity.accessStatus ?? ''} onChange={e => updateAccount('accessStatus', e.target.value || null)}>
           <option value="">Not provided yet</option>
           {ACCESS_STATUS_OPTIONS.map(o => <option key={o}>{o}</option>)}
         </select>
         {!report.accountIdentity.accessStatus && <span className="detail-field-helper">{FIELD_HELPERS.accessStatus}</span>}
-      </label>))
+      </label>)
     }
     if (accountShowsMisuse(affectedType)) {
-      fields.push(field('misuseType', !!report.accountIdentity.misuseType, <label>{accountMisuseFieldLabel(affectedType)} {isAssisted && report.accountIdentity.misuseType && <SourceTag />}
+      extraFields.push(<label key="misuseType">{accountMisuseFieldLabel(affectedType)} {isAssisted && report.accountIdentity.misuseType && <SourceTag />}
         <select value={report.accountIdentity.misuseType ?? ''} onChange={e => updateAccount('misuseType', e.target.value || null)}>
           <option value="">Not provided yet</option>
           {accountMisuseOptions(affectedType).map(o => <option key={o}>{o}</option>)}
         </select>
         {!report.accountIdentity.misuseType && <span className="detail-field-helper">{FIELD_HELPERS.misuseType}</span>}
-      </label>))
+      </label>)
     }
   } else if (category === 'other-cyber') {
     typeLabel = 'Issue'
     typeValue = report.otherIncident.issueType ?? 'Not provided yet'
     const issueType = report.otherIncident.issueType
-    fields = [
-      field('otherPlatform', !!report.otherIncident.platform, <label>Platform {isAssisted && report.otherIncident.platform && <SourceTag />}
+    extraFields = [
+      <label key="otherPlatform">Platform {isAssisted && report.otherIncident.platform && <SourceTag />}
         <select value={report.otherIncident.platform ?? ''} onChange={e => updateOther('platform', e.target.value || null)}>
           <option value="">Not provided yet</option>
           {OTHER_PLATFORM_OPTIONS.map(o => <option key={o}>{o}</option>)}
         </select>
         {!report.otherIncident.platform && <span className="detail-field-helper">{FIELD_HELPERS.otherPlatform}</span>}
-      </label>),
-      field('date', !!report.incident.date, <label>Date {isAssisted && report.incident.date && <SourceTag />}
-        <input value={report.incident.date ?? ''} onChange={e => updateIncident('date', e.target.value || null)} placeholder="Not provided yet" />
-        {!report.incident.date && <span className="detail-field-helper">{FIELD_HELPERS.date}</span>}
-      </label>),
+      </label>,
     ]
     if (issueType === 'Threats or harassment') {
-      fields.push(field('approximateTime', !!report.incident.approximateTime, <label>Approximate time {isAssisted && report.incident.approximateTime && <SourceTag />}
-        <input value={report.incident.approximateTime ?? ''} onChange={e => updateIncident('approximateTime', e.target.value || null)} placeholder="Not provided yet" />
-        {!report.incident.approximateTime && <span className="detail-field-helper">{FIELD_HELPERS.approximateTime}</span>}
-      </label>))
-      fields.push(field('contactMethod', !!report.incident.contactMethod, <label>How you are being contacted {isAssisted && report.incident.contactMethod && <SourceTag />}
+      extraFields.push(<label key="contactMethod">How you are being contacted {isAssisted && report.incident.contactMethod && <SourceTag />}
         <select value={report.incident.contactMethod ?? ''} onChange={e => updateIncident('contactMethod', e.target.value || null)}>
           <option value="">Not provided yet</option>
           {OTHER_PLATFORM_OPTIONS.map(o => <option key={o}>{o}</option>)}
         </select>
         {!report.incident.contactMethod && <span className="detail-field-helper">{FIELD_HELPERS.contactMethod}</span>}
-      </label>))
+      </label>)
     }
     if (issueType === 'Fake profile or impersonation' || issueType === 'Suspicious message, link or website') {
-      fields.push(field('identifier', !!report.otherIncident.personOrAccountIdentifier, <label>Profile, account or link {isAssisted && report.otherIncident.personOrAccountIdentifier && <SourceTag />}
+      extraFields.push(<label key="identifier">Profile, account or link {isAssisted && report.otherIncident.personOrAccountIdentifier && <SourceTag />}
         <input value={report.otherIncident.personOrAccountIdentifier ?? ''} onChange={e => updateOther('personOrAccountIdentifier', e.target.value || null)} placeholder="Not provided yet" />
         {!report.otherIncident.personOrAccountIdentifier && <span className="detail-field-helper">{FIELD_HELPERS.identifier}</span>}
-      </label>))
+      </label>)
     }
   } else {
-    fields = [
-      field('paymentMethod', !!report.incident.paymentMethod, <label>Payment method {isAssisted && report.incident.paymentMethod && <SourceTag />}
+    extraFields = [
+      <label key="amount">Amount involved (₹) {isAssisted && report.incident.amount != null && <SourceTag />}
+        <input inputMode="numeric" type="number" value={report.incident.amount ?? ''} onChange={e => updateIncident('amount', e.target.value ? Number(e.target.value) : null)} placeholder="0" />
+        {(report.incident.amount == null || report.incident.amount <= 0) && <span className="detail-field-helper field-error">This is required for a financial-fraud complaint.</span>}
+      </label>,
+      <label key="paymentMethod">Payment method {isAssisted && report.incident.paymentMethod && <SourceTag />}
         <select value={report.incident.paymentMethod ?? ''} onChange={e => updateIncident('paymentMethod', e.target.value || null)}>
           <option value="">Not provided yet</option>
           <option>UPI</option>
@@ -152,16 +185,8 @@ export function ReportDetails() {
           <option>Other</option>
         </select>
         {!report.incident.paymentMethod && <span className="detail-field-helper">{FIELD_HELPERS.paymentMethod}</span>}
-      </label>),
-      field('date', !!report.incident.date, <label>Date {isAssisted && report.incident.date && <SourceTag />}
-        <input value={report.incident.date ?? ''} onChange={e => updateIncident('date', e.target.value || null)} placeholder="Not provided yet" />
-        {!report.incident.date && <span className="detail-field-helper">{FIELD_HELPERS.date}</span>}
-      </label>),
-      field('approximateTime', !!report.incident.approximateTime, <label>Approximate time {isAssisted && report.incident.approximateTime && <SourceTag />}
-        <input value={report.incident.approximateTime ?? ''} onChange={e => updateIncident('approximateTime', e.target.value || null)} placeholder="Not provided yet" />
-        {!report.incident.approximateTime && <span className="detail-field-helper">{FIELD_HELPERS.approximateTime}</span>}
-      </label>),
-      field('contactMethod', !!report.incident.contactMethod, <label>How were you contacted? {isAssisted && report.incident.contactMethod && <SourceTag />}
+      </label>,
+      <label key="contactMethod">How were you contacted? {isAssisted && report.incident.contactMethod && <SourceTag />}
         <select value={report.incident.contactMethod ?? ''} onChange={e => updateIncident('contactMethod', e.target.value || null)}>
           <option value="">Not provided yet</option>
           <option>Phone call</option>
@@ -172,17 +197,19 @@ export function ReportDetails() {
           <option>Not applicable</option>
         </select>
         {!report.incident.contactMethod && <span className="detail-field-helper">{FIELD_HELPERS.contactMethod}</span>}
-      </label>),
+      </label>,
+      <label key="impersonation">Claimed to represent {isAssisted && report.incident.impersonation && <SourceTag />}
+        <select value={report.incident.impersonation ?? ''} onChange={e => updateIncident('impersonation', e.target.value || null)}>
+          <option value="">Not applicable</option>
+          {IMPERSONATION_OPTIONS.map(o => <option key={o}>{o}</option>)}
+        </select>
+      </label>,
     ]
   }
 
   const isFinancial = category === 'financial-fraud'
   const financialErrors = isFinancial ? financialRequiredErrors(report) : []
-  const descriptionOk = descriptionMeetsMinimum(report.incident.description)
-  const canContinue = descriptionOk && financialErrors.length === 0
-
-  const found = fields.filter(f => f.hasValue)
-  const stillNeeded = fields.filter(f => !f.hasValue)
+  const canContinue = financialErrors.length === 0
 
   const heading = category === 'financial-fraud'
     ? (isAssisted ? 'Here’s what we understood' : 'Check your details')
@@ -193,71 +220,65 @@ export function ReportDetails() {
     navigate(isAssisted ? assistedReviewPath(category) : manualPath(category))
   }
 
-  return <main className="report-page">
+  return <main className="report-page report-page-wide">
     <ProgressSteps current="Details" />
-    <div className="report-intro">
-      <h1>{heading}</h1>
-      <p className="lead">Check each field and make changes if anything looks wrong. Optional fields can be left blank.</p>
-    </div>
-    <form className="review-form" onSubmit={event => event.preventDefault()}>
-      <div className="field-grid">
-        <label>{typeLabel}
-          <input value={typeValue} disabled />
-        </label>
+    <div className="details-intro">
+      <div className="report-intro">
+        <h1>{heading}</h1>
+        <p className="lead">We filled these in from what you told us.</p>
+        <p className="lead">Check anything that’s missing or incorrect.</p>
       </div>
+      {isAssisted && <span className="understood-pill">
+        <CheckBadgeGlyph /> Details understood from your description <InfoDotGlyph />
+      </span>}
+    </div>
 
-      {isFinancial && <section className="required-block">
-        <h2>Required for this complaint</h2>
-        <p className="helper">The National Cyber Crime Reporting Portal requires these details for a financial-fraud complaint.</p>
+    <div className="details-layout">
+      <form className="review-form details-card" onSubmit={event => event.preventDefault()}>
+        <h2 className="details-section-title">Incident details</h2>
         <div className="field-grid">
-          <label>Bank / wallet / merchant name <span className="required-badge">Required</span>
-            <input value={report.transaction.merchantName ?? ''} onChange={e => updateTransaction('merchantName', e.target.value)} placeholder="e.g. HDFC Bank, Paytm" />
-            {!report.transaction.merchantName && <span className="detail-field-helper field-error">This is required for a financial-fraud complaint.</span>}
+          <label>{typeLabel}
+            <input value={typeValue} disabled />
           </label>
-          <label>Transaction ID / UTR <span className="required-badge">Required</span>
-            <input value={report.transaction.transactionId ?? ''} onChange={e => updateTransaction('transactionId', e.target.value)} placeholder="12-digit UTR" />
-            {(!report.transaction.transactionId || !/^\d{12}$/.test(report.transaction.transactionId)) && <span className="detail-field-helper field-error">Must be exactly 12 digits.</span>}
+          <label>When did it happen?
+            <div className="field-split">
+              <input value={report.incident.date ?? ''} onChange={e => updateIncident('date', e.target.value || null)} placeholder="Date not provided" />
+              <input value={report.incident.approximateTime ?? ''} onChange={e => updateIncident('approximateTime', e.target.value || null)} placeholder="Time not provided" />
+            </div>
           </label>
-          <label>Transaction date <span className="required-badge">Required</span>
-            <input value={report.transaction.transactionDate ?? ''} onChange={e => updateTransaction('transactionDate', e.target.value)} placeholder="e.g. 24 August 2026" />
-            {!report.transaction.transactionDate && <span className="detail-field-helper field-error">This is required for a financial-fraud complaint.</span>}
-          </label>
-          <label>Fraud amount (₹) <span className="required-badge">Required</span>
-            <input inputMode="numeric" type="number" value={report.incident.amount ?? ''} onChange={e => updateIncident('amount', e.target.value ? Number(e.target.value) : null)} placeholder="0" />
-            {(report.incident.amount == null || report.incident.amount <= 0) && <span className="detail-field-helper field-error">This is required for a financial-fraud complaint.</span>}
-          </label>
+          {extraFields}
         </div>
-      </section>}
 
-      {found.length > 0 && <section className="found-block">
-        <h2>{isAssisted ? 'Found from your description' : 'You’ve provided'}</h2>
-        <div className="field-grid">{found.map(f => <div key={f.key} className="detail-field found">{f.node}</div>)}</div>
-      </section>}
+        {isFinancial && <>
+          <h2 className="details-section-title">Transaction details</h2>
+          <div className="field-grid">
+            <label>Bank / wallet / merchant {isAssisted && report.transaction.merchantName && <SourceTag />}
+              <input value={report.transaction.merchantName ?? ''} onChange={e => updateTransaction('merchantName', e.target.value)} placeholder="e.g. HDFC Bank, Paytm" />
+              {!report.transaction.merchantName && <span className="detail-field-helper field-error">This is required for a financial-fraud complaint.</span>}
+            </label>
+            <label>Transaction / UTR number (if available) {isAssisted && report.transaction.transactionId && <SourceTag />}
+              <input value={report.transaction.transactionId ?? ''} onChange={e => updateTransaction('transactionId', e.target.value)} placeholder="12-digit UTR" />
+              {(!report.transaction.transactionId || !/^\d{12}$/.test(report.transaction.transactionId)) && <span className="detail-field-helper field-error">Must be exactly 12 digits.</span>}
+            </label>
+            <label>Transaction date
+              <input value={report.transaction.transactionDate ?? ''} onChange={e => updateTransaction('transactionDate', e.target.value)} placeholder="e.g. 24 August 2026" />
+              {!report.transaction.transactionDate && <span className="detail-field-helper field-error">This is required for a financial-fraud complaint.</span>}
+            </label>
+          </div>
+        </>}
 
-      {stillNeeded.length > 0 && <section className="still-needed-block">
-        <h2>Still needed</h2>
-        <div className="field-grid">{stillNeeded.map(f => <div key={f.key} className="detail-field missing">{f.node}</div>)}</div>
-      </section>}
-
-      {category === 'financial-fraud' && <label className="checkbox-field standalone">
-        <input
-          type="checkbox"
-          checked={report.incident.impersonation === true}
-          onChange={e => updateIncident('impersonation', e.target.checked)}
+        <DescriptionField
+          value={report.incident.description}
+          onChange={value => updateIncident('description', value)}
+          generated={isAssisted}
         />
-        The person or message claimed to represent a bank, company or government office
-      </label>}
+      </form>
 
-      <DescriptionField
-        value={report.incident.description}
-        onChange={value => updateIncident('description', value)}
-        generated={isAssisted}
-      />
-    </form>
+      <HelpfulSidebar addPath={evidencePath(category)} />
+    </div>
 
-    {(!descriptionOk || financialErrors.length > 0) && <p className="field-error">
-      {!descriptionOk ? 'Add more detail to the description before continuing. ' : ''}
-      {financialErrors.length > 0 ? 'Complete the required financial-fraud fields above before continuing.' : ''}
+    {financialErrors.length > 0 && <p className="field-error">
+      Complete the required financial-fraud fields above before continuing.
     </p>}
 
     <StepActionBar

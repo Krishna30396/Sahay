@@ -84,5 +84,10 @@ export function useSpeechRecognition(onTranscript: (text: string) => void) {
     setInterimText('')
   }
 
-  return { state, start, stop, interimText, errorCode, language, setLanguage, supported: state !== 'unsupported' }
+  const dismissError = () => {
+    setState(current => (current === 'error' ? 'idle' : current))
+    setErrorCode(null)
+  }
+
+  return { state, start, stop, dismissError, interimText, errorCode, language, setLanguage, supported: state !== 'unsupported' }
 }

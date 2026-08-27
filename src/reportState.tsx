@@ -25,7 +25,7 @@ export interface ReportIncident {
   date: string | null
   approximateTime: string | null
   contactMethod: string | null
-  impersonation: boolean | null
+  impersonation: string | null
   description: string
 }
 

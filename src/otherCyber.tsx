@@ -1,24 +1,14 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from './router'
 import { useReport } from './reportState'
-import { DescriptionField, EntryStartShell, ProgressSteps, StepActionBar, VoiceAssistedEntry, extractApproximateTime, extractDate } from './report'
-import { descriptionMeetsMinimum, generateStructuredDescription } from './validation'
+import { DescriptionField, ProgressSteps, StepActionBar, VoiceAssistedEntry, extractApproximateTime, extractDate } from './report'
+import { generateStructuredDescription } from './validation'
 import {
   IMMEDIATE_RISK_OPTIONS,
   OTHER_ISSUE_TYPES,
   OTHER_PLATFORM_OPTIONS,
   RECEIVED_VIA_OPTIONS,
 } from './categoryLabels'
-
-export function OtherStart() {
-  return <EntryStartShell
-    category="other-cyber"
-    title="Let’s understand what happened"
-    supportingText="You can describe the problem in your own words, or enter the details yourself."
-    assistedPath="/report/other/assisted"
-    manualPath="/report/other/manual"
-  />
-}
 
 const OTHER_PLATFORM_KEYWORDS: [RegExp, string][] = [
   [/whatsapp/i, 'WhatsApp'],
@@ -101,7 +91,7 @@ export function OtherAssisted() {
       text={text}
       onTextChange={setText}
       onAppendSpeech={appendSpeech}
-      onBack={() => navigate('/report/other/start')}
+      onBack={() => navigate('/')}
       onSubmit={submit}
       canContinue={canContinue}
       processing={processing}
@@ -119,7 +109,7 @@ export function OtherAssistedReview() {
   const { report, setReport } = useReport()
 
   useEffect(() => {
-    if (report.entryMode !== 'assisted' || report.category !== 'other-cyber') navigate('/report/other/start')
+    if (report.entryMode !== 'assisted' || report.category !== 'other-cyber') navigate('/report/other/assisted')
   }, [report.entryMode, report.category, navigate])
 
   if (report.entryMode !== 'assisted' || report.category !== 'other-cyber') return null
@@ -165,7 +155,6 @@ export function OtherAssistedReview() {
       onBack={() => navigate('/report/other/assisted')}
       primaryLabel="Continue"
       onPrimary={() => navigate('/report/other/details')}
-      primaryDisabled={!descriptionMeetsMinimum(report.incident.description)}
     />
   </main>
 }
@@ -329,7 +318,7 @@ export function OtherManual() {
       <DescriptionField value={draft.description} onChange={value => update('description', value)} />
     </form>
     <StepActionBar
-      onBack={() => navigate('/report/other/start')}
+      onBack={() => navigate('/report/other/assisted')}
       primaryLabel="Continue"
       onPrimary={submit}
       primaryDisabled={!canContinue}
