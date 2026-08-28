@@ -1,6 +1,6 @@
-import { ReactElement, useState } from 'react'
+import { KeyboardEvent, ReactElement, useEffect, useRef, useState } from 'react'
 import { Link, RouterProvider, useRouter } from './router'
-import { ReportProvider } from './reportState'
+import { ReportProvider, useReport } from './reportState'
 import { NotFound, ReportAssisted, ReportManualEntry } from './report'
 import { ReportDetails } from './details'
 import { ReportEvidence } from './evidence'
@@ -13,7 +13,7 @@ import { DigiLockerConfirm, DigiLockerConsent, DigiLockerDocuments, DigiLockerSu
 import { AccountIdentityAssisted, AccountIdentityAssistedReview, AccountIdentityManual } from './accountIdentity'
 import { OtherAssisted, OtherAssistedReview, OtherManual } from './otherCyber'
 
-type ModalKind = 'steps' | 'info' | null
+type ModalKind = 'steps' | 'info' | 'verify-mobile' | null
 
 const Arrow = () => <span aria-hidden="true">→</span>
 
@@ -52,6 +52,27 @@ function ShieldBoltIcon() {
 function HeadsetIcon() {
   return <svg {...iconProps()}><path d="M4 13a8 8 0 0 1 16 0" /><rect x="3" y="13" width="4" height="6" rx="1.5" /><rect x="17" y="13" width="4" height="6" rx="1.5" /><path d="M19 19v1a3 3 0 0 1-3 3h-3" /></svg>
 }
+function BookmarkGlyph() {
+  return <svg {...iconProps()}><path d="M6 3h12v18l-6-4.5L6 21z" /></svg>
+}
+function FileTextGlyph() {
+  return <svg {...iconProps()}><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 3 14 8 19 8" /><line x1="8" y1="13" x2="16" y2="13" /><line x1="8" y1="17" x2="13" y2="17" /></svg>
+}
+function PencilGlyph() {
+  return <svg {...iconProps()}><path d="M12 20h9" /><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z" /></svg>
+}
+function ShieldCheckGlyph() {
+  return <svg {...iconProps()}><path d="M12 3l7 3v6c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6z" /><path d="M9 12l2 2 4-4" /></svg>
+}
+function ClockGlyph() {
+  return <svg {...iconProps()}><circle cx="12" cy="12" r="9" /><polyline points="12 7 12 12 15 14" /></svg>
+}
+function CheckGlyph() {
+  return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={3} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><polyline points="5 13 10 18 19 6" /></svg>
+}
+function SparkleGlyph() {
+  return <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2l1.8 6.2L20 10l-6.2 1.8L12 18l-1.8-6.2L4 10l6.2-1.8z" /></svg>
+}
 
 const ACT_NOW_STEPS: { image: string; title: string; description: string }[] = [
   { image: '/assets/act-call.png', title: 'Call 1930', description: 'If money was just transferred, contact the financial-cyber-fraud helpline immediately.' },
@@ -87,11 +108,142 @@ function NextSteps() {
   </section>
 }
 
-function Modal({ kind, onClose }: { kind: ModalKind; onClose: () => void }) {
+function VerifyMobilePanel({ onVerified }: { onVerified: () => void }) {
+  const { report, setReport } = useReport()
+  const [step, setStep] = useState<'phone' | 'otp' | 'success'>('phone')
+  const [mobile, setMobile] = useState(report.complainant.mobile ?? '')
+  const [sending, setSending] = useState(false)
+  const [otp, setOtp] = useState(['', '', '', '', '', ''])
+  const [verifying, setVerifying] = useState(false)
+  const [countdown, setCountdown] = useState(3)
+  const otpRefs = useRef<(HTMLInputElement | null)[]>([])
+  const mobileValid = /^\d{10}$/.test(mobile)
+  const otpValid = otp.every(digit => digit !== '')
+
+  useEffect(() => {
+    if (step !== 'success') return
+    if (countdown <= 0) { onVerified(); return }
+    const timer = setTimeout(() => setCountdown(c => c - 1), 1000)
+    return () => clearTimeout(timer)
+  }, [step, countdown, onVerified])
+
+  const sendOtp = () => {
+    if (!mobileValid || sending) return
+    setSending(true)
+    setReport(current => ({ ...current, complainant: { ...current.complainant, mobile } }))
+    setTimeout(() => {
+      setSending(false)
+      setOtp(['', '', '', '', '', ''])
+      setStep('otp')
+      setTimeout(() => otpRefs.current[0]?.focus(), 0)
+    }, 500)
+  }
+
+  const verifyOtp = () => {
+    if (!otpValid || verifying) return
+    setVerifying(true)
+    setTimeout(() => {
+      setVerifying(false)
+      setCountdown(3)
+      setStep('success')
+    }, 500)
+  }
+
+  const setOtpDigit = (index: number, raw: string) => {
+    const digit = raw.replace(/\D/g, '').slice(-1)
+    setOtp(current => {
+      const next = [...current]
+      next[index] = digit
+      return next
+    })
+    if (digit && index < 5) otpRefs.current[index + 1]?.focus()
+  }
+
+  const onOtpKeyDown = (index: number, e: KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Backspace' && !otp[index] && index > 0) otpRefs.current[index - 1]?.focus()
+  }
+
+  const maskedMobile = mobile.length === 10 ? `${mobile.slice(0, 5)} ${mobile.slice(5)}` : mobile
+
+  return <div className="verify-modal">
+    <div className="verify-art-panel">
+      <img className="verify-art" src="/assets/verify-mobile.png" alt="" aria-hidden="true" />
+      <h2 id="modal-title">Before you start,<br />we need to verify.</h2>
+      <div className="verify-divider" aria-hidden="true"><span><ShieldCheckGlyph /></span></div>
+      <p>It helps us keep your report connected to you so you can get the right help.</p>
+    </div>
+    <div className="verify-form-panel">
+      {step === 'phone' && <>
+        <h3>Verify your mobile number</h3>
+        <p className="modal-sub">Enter your mobile number and we’ll send you a 6-digit OTP.</p>
+        <div className="verify-phone-row">
+          <span className="verify-country-code">+91 <span aria-hidden="true">⌄</span></span>
+          <input
+            inputMode="numeric"
+            value={mobile}
+            onChange={e => setMobile(e.target.value.replace(/\D/g, '').slice(0, 10))}
+            placeholder="Enter mobile number"
+            aria-label="Mobile number"
+          />
+        </div>
+        <button type="button" className="button primary verify-send-btn" onClick={sendOtp} disabled={!mobileValid || sending}>
+          {sending ? 'Sending…' : 'Send OTP'} <span aria-hidden="true">→</span>
+        </button>
+        <ul className="verify-benefits">
+          <li><span className="verify-benefit-icon"><BookmarkGlyph /></span>We’ll use it to save your progress.</li>
+          <li><span className="verify-benefit-icon"><FileTextGlyph /></span>Your number is used for this report.</li>
+          <li><span className="verify-benefit-icon"><PencilGlyph /></span>You can change your number later.</li>
+        </ul>
+      </>}
+      {step === 'otp' && <>
+        <h3 className="verify-title-otp">Enter your verification code</h3>
+        <p className="modal-sub verify-otp-sub">We sent a 6-digit code to<br /><b className="verify-otp-number">+91 {maskedMobile}</b></p>
+        <div className="verify-otp-row">
+          {otp.map((digit, index) => (
+            <input
+              key={index}
+              ref={el => { otpRefs.current[index] = el }}
+              className="verify-otp-box"
+              inputMode="numeric"
+              maxLength={1}
+              value={digit}
+              onChange={e => setOtpDigit(index, e.target.value)}
+              onKeyDown={e => onOtpKeyDown(index, e)}
+              aria-label={`Digit ${index + 1} of 6`}
+            />
+          ))}
+        </div>
+        <button type="button" className="button primary verify-send-btn" onClick={verifyOtp} disabled={!otpValid || verifying}>
+          {verifying ? 'Verifying…' : 'Verify mobile'} <span aria-hidden="true">→</span>
+        </button>
+        <p className="verify-resend"><ClockGlyph /> Didn’t receive it? <button type="button" className="verify-link" onClick={sendOtp} disabled={sending}>Resend code</button></p>
+        <div className="verify-otp-divider" aria-hidden="true" />
+        <p className="verify-change-number"><PencilGlyph /> You can <button type="button" className="verify-link" onClick={() => setStep('phone')}>change your number</button> if this isn’t correct.</p>
+      </>}
+      {step === 'success' && <div className="verify-success">
+        <div className="verify-success-badge">
+          <span className="verify-success-glow" aria-hidden="true" />
+          <span className="verify-success-sparkle s1" aria-hidden="true"><SparkleGlyph /></span>
+          <span className="verify-success-sparkle s2" aria-hidden="true"><SparkleGlyph /></span>
+          <span className="verify-success-sparkle s3" aria-hidden="true"><SparkleGlyph /></span>
+          <span className="verify-success-check" aria-hidden="true"><CheckGlyph /></span>
+        </div>
+        <h3 className="verify-title-otp">Mobile number verified!</h3>
+        <p className="modal-sub">Your number has been successfully verified.<br />You’ll be redirected to start your report.</p>
+        <div className="verify-success-dots" aria-hidden="true"><span className="dot active" /><span className="dot" /><span className="dot" /></div>
+        <div className="verify-otp-divider" aria-hidden="true" />
+        <p className="verify-redirect"><ShieldCheckGlyph /> Redirecting in <b>{countdown}</b> second{countdown === 1 ? '' : 's'}…</p>
+      </div>}
+    </div>
+  </div>
+}
+
+function Modal({ kind, onClose, onVerified }: { kind: ModalKind; onClose: () => void; onVerified: () => void }) {
   if (!kind) return null
   return <div className="modal-backdrop" role="presentation" onMouseDown={onClose}>
-    <section className={`modal${kind === 'steps' ? ' modal-compact' : ''}`} role="dialog" aria-modal="true" aria-labelledby="modal-title" onMouseDown={e => e.stopPropagation()}>
+    <section className={`modal${kind === 'steps' ? ' modal-compact' : ''}${kind === 'verify-mobile' ? ' modal-verify' : ''}`} role="dialog" aria-modal="true" aria-labelledby="modal-title" onMouseDown={e => e.stopPropagation()}>
       <button className="close" onClick={onClose} aria-label="Close dialog">×</button>
+      {kind === 'verify-mobile' && <VerifyMobilePanel onVerified={onVerified} />}
       {kind === 'steps' && <div className="act-now-modal">
         <h2 id="modal-title">What should I do first?</h2>
         <p className="modal-sub">Follow these steps right away to protect yourself and increase the chances of recovery.</p>
@@ -140,13 +292,13 @@ function Footer() {
   return <footer><div className="container footer-inner"><div><b>Sahay</b><span>Cyber Fraud Assistance</span></div><div className="footer-links"><a href="https://cybercrime.gov.in" target="_blank" rel="noreferrer">National Cyber Crime Reporting Portal</a><a href="tel:1930">1930</a><Link to="/#help">Help</Link><Link to="/">Accessibility</Link></div><p>Public Service Prototype<br />This prototype is not an official Government of India service and does not submit real complaints.</p></div></footer>
 }
 
-function Landing({ setModal }: { setModal: (kind: ModalKind) => void }) {
+function Landing({ setModal, onStartReport }: { setModal: (kind: ModalKind) => void; onStartReport: (target: string) => void }) {
   return <main id="top">
     <section className="hero container"><div className="hero-top"><div className="hero-copy"><h1>What happened?</h1><p className="lead">We’ll help you take the right next step.</p><span className="orange-rule"></span><p className="intro">If you’ve experienced online financial fraud, account misuse or another cyber incident, start here.</p></div><HeroArtwork /></div>
       <div className="service-grid" id="report">
-        <article className="service-card featured"><CardIllustration type="money" /><div><h2>I lost money</h2><p>UPI, bank transfer, card, investment or online payment fraud.</p><Link to="/report/assisted">Start report <Arrow /></Link></div></article>
-        <article className="service-card identity"><CardIllustration type="identity" /><div><h2>My account or identity was misused</h2><p>Hacked accounts, impersonation or unauthorized access.</p><Link to="/report/account-identity/assisted">Get help <Arrow /></Link></div></article>
-        <article className="service-card other wide"><CardIllustration type="other" /><div><h2>Something else happened online</h2><p>Harassment, threats, fake profiles or another cyber issue.</p><Link to="/report/other/assisted">Find the right service <Arrow /></Link></div></article>
+        <article className="service-card featured"><CardIllustration type="money" /><div><h2>I lost money</h2><p>UPI, bank transfer, card, investment or online payment fraud.</p><button type="button" onClick={() => onStartReport('/report/assisted')}>Start report <Arrow /></button></div></article>
+        <article className="service-card identity"><CardIllustration type="identity" /><div><h2>My account or identity was misused</h2><p>Hacked accounts, impersonation or unauthorized access.</p><button type="button" onClick={() => onStartReport('/report/account-identity/assisted')}>Get help <Arrow /></button></div></article>
+        <article className="service-card other wide"><CardIllustration type="other" /><div><h2>Something else happened online</h2><p>Harassment, threats, fake profiles or another cyber issue.</p><button type="button" onClick={() => onStartReport('/report/other/assisted')}>Find the right service <Arrow /></button></div></article>
       </div>
     </section>
     <section className="emergency"><div className="container emergency-inner"><div><p className="eyebrow">IF MONEY WAS JUST TRANSFERRED</p><h2>Call 1930 immediately.</h2><p>If you have just experienced financial cyber fraud, contact 1930 and your bank or payment provider as soon as possible.</p></div><div className="actions"><a className="button primary" href="tel:1930">Call 1930</a><button className="text-link" onClick={() => setModal('steps')}>What should I do first? <Arrow /></button></div></div></section>
@@ -156,10 +308,10 @@ function Landing({ setModal }: { setModal: (kind: ModalKind) => void }) {
   </main>
 }
 
-function Screens({ setModal }: { setModal: (kind: ModalKind) => void }) {
+function Screens({ setModal, onStartReport }: { setModal: (kind: ModalKind) => void; onStartReport: (target: string) => void }) {
   const { path } = useRouter()
   switch (path) {
-    case '/': return <Landing setModal={setModal} />
+    case '/': return <Landing setModal={setModal} onStartReport={onStartReport} />
     case '/track': return <TrackReport />
     case '/report/assisted': return <ReportAssisted />
     case '/report/details': return <ReportDetails />
@@ -201,12 +353,21 @@ function Screens({ setModal }: { setModal: (kind: ModalKind) => void }) {
 function Shell() {
   const [modal, setModal] = useState<ModalKind>(null)
   const [menuOpen, setMenuOpen] = useState(false)
+  const [verifyTarget, setVerifyTarget] = useState<string | null>(null)
+  const { navigate } = useRouter()
+
+  const onStartReport = (target: string) => { setVerifyTarget(target); setModal('verify-mobile') }
+  const onVerified = () => {
+    setModal(null)
+    if (verifyTarget) navigate(verifyTarget)
+  }
+
   return <>
     <Header menuOpen={menuOpen} setMenuOpen={setMenuOpen} />
     <PrototypeBanner />
-    <Screens setModal={setModal} />
+    <Screens setModal={setModal} onStartReport={onStartReport} />
     <Footer />
-    <Modal kind={modal} onClose={() => setModal(null)} />
+    <Modal kind={modal} onClose={() => setModal(null)} onVerified={onVerified} />
   </>
 }
 

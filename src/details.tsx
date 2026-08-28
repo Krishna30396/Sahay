@@ -24,7 +24,7 @@ function iconProps() {
 }
 
 function CheckBadgeGlyph() {
-  return <svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><circle cx="10" cy="10" r="9" fill="#1c4b32" /><path d="M6.3 10.3l2.3 2.3 5-5" stroke="#fff" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" /></svg>
+  return <svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><circle cx="10" cy="10" r="9" fill="#16a34a" /><path d="M6.3 10.3l2.3 2.3 5-5" stroke="#fff" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" /></svg>
 }
 
 function InfoDotGlyph() {
@@ -58,9 +58,9 @@ function HelpfulSidebar({ addPath }: { addPath: string }) {
     <h2>Helpful if you have it</h2>
     <ul className="helpful-list">
       {items.map(([icon, label]) => <li key={label} className="helpful-item">
-        {icon}
-        <span>{label}</span>
-        <Link className="helpful-add" to={addPath}>Add</Link>
+        <span className="helpful-item-icon" aria-hidden="true">{icon}</span>
+        <span className="helpful-item-label">{label}</span>
+        <Link className="helpful-add" to={`${addPath}#suspect`}>Add</Link>
       </li>)}
     </ul>
   </aside>
@@ -222,16 +222,17 @@ export function ReportDetails() {
 
   return <main className="report-page report-page-wide">
     <ProgressSteps current="Details" />
-    <div className="details-intro">
-      <div className="report-intro">
-        <h1>{heading}</h1>
-        <p className="lead">We filled these in from what you told us.</p>
-        <p className="lead">Check anything that’s missing or incorrect.</p>
-      </div>
-      {isAssisted && <span className="understood-pill">
-        <CheckBadgeGlyph /> Details understood from your description <InfoDotGlyph />
-      </span>}
+    <div className="report-intro">
+      <h1>{heading}</h1>
+      <p className="lead">We filled these in from what you told us.</p>
+      <p className="lead">Check anything that’s missing or incorrect.</p>
     </div>
+
+    {isAssisted && <div className="understood-pill-row">
+      <span className="understood-pill">
+        <CheckBadgeGlyph /> Details understood from your description <InfoDotGlyph />
+      </span>
+    </div>}
 
     <div className="details-layout">
       <form className="review-form details-card" onSubmit={event => event.preventDefault()}>

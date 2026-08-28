@@ -1,4 +1,4 @@
-import { ChangeEvent, DragEvent, ReactElement, useMemo, useRef, useState } from 'react'
+import { ChangeEvent, DragEvent, ReactElement, useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from './router'
 import { EvidenceType, ReportCategory, SuspectInfo, useReport } from './reportState'
 import type { EvidenceItem as EvidenceRecord } from './reportState'
@@ -225,21 +225,28 @@ function EvidenceRow({ item, onView, onRemove }: {
 
 function SuspectSection({ suspect, onChange }: { suspect: SuspectInfo; onChange: <K extends keyof SuspectInfo>(key: K, value: SuspectInfo[K]) => void }) {
   const hasAny = Object.values(suspect).some(v => !!v)
-  const [open, setOpen] = useState(hasAny)
+  const [open, setOpen] = useState(hasAny || window.location.hash === '#suspect')
+  const firstFieldRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    if (open) firstFieldRef.current?.focus()
+  }, [open])
 
   if (!open) {
-    return <section className="suspect-section">
+    return <section id="suspect" className="suspect-section">
       <h2>Do you know anything about the person involved?</h2>
-      <button type="button" className="button secondary" onClick={() => setOpen(true)}>+ Add suspect information</button>
+      <button type="button" className="button secondary suspect-add-button" onClick={() => setOpen(true)}>
+        <span className="suspect-add-icon"><ProfileGlyph /></span> Add suspect information
+      </button>
     </section>
   }
 
-  return <section className="suspect-section">
+  return <section id="suspect" className="suspect-section">
     <h2>Do you know anything about the person involved?</h2>
     <p className="helper">Only add information you know. All of this is optional and will never block submission.</p>
     <div className="field-grid">
       <label>Suspect mobile number
-        <input value={suspect.mobile ?? ''} onChange={e => onChange('mobile', e.target.value || null)} placeholder="Not provided" />
+        <input ref={firstFieldRef} value={suspect.mobile ?? ''} onChange={e => onChange('mobile', e.target.value || null)} placeholder="Not provided" />
       </label>
       <label>Suspect email
         <input value={suspect.email ?? ''} onChange={e => onChange('email', e.target.value || null)} placeholder="Not provided" />
