@@ -42,10 +42,6 @@ function FolderIcon() {
 function SearchIcon() {
   return <svg {...iconProps()}><circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" /></svg>
 }
-function SendIcon() {
-  return <svg {...iconProps()}><line x1="22" y1="2" x2="11" y2="13" /><polygon points="22 2 15 22 11 13 2 9 22 2" /></svg>
-}
-
 function ShieldBoltIcon() {
   return <svg {...iconProps()}><path d="M12 3l7 3v6c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6z" /><polyline points="13 8 10 13 13 13 11 17" /></svg>
 }
@@ -67,13 +63,6 @@ function ShieldCheckGlyph() {
 function ClockGlyph() {
   return <svg {...iconProps()}><circle cx="12" cy="12" r="9" /><polyline points="12 7 12 12 15 14" /></svg>
 }
-function CheckGlyph() {
-  return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={3} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><polyline points="5 13 10 18 19 6" /></svg>
-}
-function SparkleGlyph() {
-  return <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2l1.8 6.2L20 10l-6.2 1.8L12 18l-1.8-6.2L4 10l6.2-1.8z" /></svg>
-}
-
 const ACT_NOW_STEPS: { image: string; title: string; description: string }[] = [
   { image: '/assets/act-call.png', title: 'Call 1930', description: 'If money was just transferred, contact the financial-cyber-fraud helpline immediately.' },
   { image: '/assets/act-bank.png', title: 'Contact your bank or payment provider', description: 'Ask about securing the transaction.' },
@@ -85,8 +74,7 @@ const NEXT_STEPS: { icon: () => ReactElement; label: string; tone: 'blue' | 'ora
   { icon: MessageIcon, label: 'Tell us what happened', tone: 'blue' },
   { icon: CheckSquareIcon, label: 'Check the details', tone: 'blue' },
   { icon: FolderIcon, label: 'Add relevant evidence', tone: 'orange' },
-  { icon: SearchIcon, label: 'Review your report', tone: 'blue' },
-  { icon: SendIcon, label: 'Submit when you’re ready', tone: 'orange' },
+  { icon: SearchIcon, label: 'Review / Submit', tone: 'blue' },
 ]
 
 function NextSteps() {
@@ -144,6 +132,7 @@ function VerifyMobilePanel({ onVerified }: { onVerified: () => void }) {
     setVerifying(true)
     setTimeout(() => {
       setVerifying(false)
+      setReport(current => ({ ...current, complainant: { ...current.complainant, mobile, mobileVerified: true } }))
       setCountdown(3)
       setStep('success')
     }, 500)
@@ -221,13 +210,7 @@ function VerifyMobilePanel({ onVerified }: { onVerified: () => void }) {
         <p className="verify-change-number"><PencilGlyph /> You can <button type="button" className="verify-link" onClick={() => setStep('phone')}>change your number</button> if this isn’t correct.</p>
       </>}
       {step === 'success' && <div className="verify-success">
-        <div className="verify-success-badge">
-          <span className="verify-success-glow" aria-hidden="true" />
-          <span className="verify-success-sparkle s1" aria-hidden="true"><SparkleGlyph /></span>
-          <span className="verify-success-sparkle s2" aria-hidden="true"><SparkleGlyph /></span>
-          <span className="verify-success-sparkle s3" aria-hidden="true"><SparkleGlyph /></span>
-          <span className="verify-success-check" aria-hidden="true"><CheckGlyph /></span>
-        </div>
+        <img className="verify-success-badge" src="/assets/verify-success.png" alt="" aria-hidden="true" />
         <h3 className="verify-title-otp">Mobile number verified!</h3>
         <p className="modal-sub">Your number has been successfully verified.<br />You’ll be redirected to start your report.</p>
         <div className="verify-success-dots" aria-hidden="true"><span className="dot active" /><span className="dot" /><span className="dot" /></div>
