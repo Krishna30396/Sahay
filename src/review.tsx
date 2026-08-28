@@ -1,9 +1,9 @@
-import { ReactNode, useState } from 'react'
+import { ChangeEvent, DragEvent, ReactNode, useRef, useState } from 'react'
 import { useRouter } from './router'
-import { useReport } from './reportState'
+import { IdentityDocumentType, useReport } from './reportState'
 import { MissingInfoNote, ProgressSteps, StepActionBar } from './report'
 import { detailsPath, evidencePath, submissionPath } from './reportRoutes'
-import { DEMO_OTP, ID_DOCUMENT_LABELS, INDIAN_STATES } from './identity'
+import { DEMO_OTP, ID_ALLOWED_MIME, ID_DOCUMENT_LABELS, ID_DOCUMENT_OPTIONS, ID_MAX_SIZE, INDIAN_STATES } from './identity'
 import { SearchableSelect } from './searchableSelect'
 
 function formatAmount(amount: number | null) {
@@ -42,26 +42,123 @@ function DigiLockerGlyph() { return <svg viewBox="-4 -4 64 60" aria-hidden="true
 </svg> }
 function UploadGlyph() { return <svg {...iconProps()}><path d="M12 16V4" /><path d="M8 8l4-4 4 4" /><path d="M4 16v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3" /></svg> }
 
-function VerifyIdentityChooser({ method, onChoose }: { method: string | null; onChoose: (destination: string) => void }) {
+function VerifyIdentityChooser() {
+  const { report, setReport } = useReport()
+  const method = report.complainant.identityMethod
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const [connecting, setConnecting] = useState(false)
+  const [uploadOpen, setUploadOpen] = useState(false)
+  const [docType, setDocType] = useState<IdentityDocumentType | ''>('')
+  const [dragActive, setDragActive] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  const connectDigiLocker = () => {
+    if (connecting) return
+    setUploadOpen(false)
+    setError(null)
+    setConnecting(true)
+    setTimeout(() => {
+      setConnecting(false)
+      setReport(current => ({
+        ...current,
+        complainant: {
+          ...current.complainant,
+          name: current.complainant.name || 'Priya Sharma',
+          state: current.complainant.state || 'Maharashtra',
+          identityMethod: 'digilocker',
+          identityDocument: { type: 'aadhaar', issuer: 'UIDAI', fileName: null, fileSize: null, mimeType: null, uploaded: true, source: 'digilocker', status: 'demo-verified' },
+        },
+      }))
+    }, 900)
+  }
+
+  const openUpload = () => {
+    setError(null)
+    setUploadOpen(true)
+  }
+
+  const acceptFile = (file: File) => {
+    if (!docType) {
+      setError('Choose a document type first.')
+      return
+    }
+    if (!ID_ALLOWED_MIME.includes(file.type)) {
+      setError('That file type isn’t supported. Please upload a JPG, JPEG or PNG.')
+      return
+    }
+    if (file.size > ID_MAX_SIZE) {
+      setError('That file is larger than 5MB. Please upload a smaller file.')
+      return
+    }
+    setError(null)
+    setReport(current => ({
+      ...current,
+      complainant: {
+        ...current.complainant,
+        identityMethod: 'manual-upload',
+        identityDocument: { type: docType, issuer: null, fileName: file.name, fileSize: file.size, mimeType: file.type, uploaded: true, source: 'manual-upload', status: 'demo-verified' },
+      },
+    }))
+  }
+
+  const onFileChosen = (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    event.target.value = ''
+    if (file) acceptFile(file)
+  }
+
+  const onDrop = (event: DragEvent<HTMLDivElement>) => {
+    event.preventDefault()
+    setDragActive(false)
+    const file = event.dataTransfer.files?.[0]
+    if (file) acceptFile(file)
+  }
+
   return <div className="verify-identity">
     <p className="verify-identity-title">Verify your identity</p>
     <p className="helper">We need one identity document to identify the complainant.</p>
+
     <label className={`verify-option${method === 'digilocker' ? ' selected' : ''}`}>
-      <input type="radio" name="verify-identity-method" checked={method === 'digilocker'} onChange={() => onChoose('/report/identity/digilocker')} />
+      <input type="radio" name="verify-identity-method" checked={method === 'digilocker'} onChange={connectDigiLocker} />
       <span className="verify-option-icon digilocker"><DigiLockerGlyph /></span>
       <span className="verify-option-body">
         <span className="verify-option-title">Use DigiLocker</span>
-        <span className="verify-option-sub">Fetch a government-issued document securely</span>
+        <span className="verify-option-sub">{connecting ? 'Connecting…' : 'Fetch a government-issued document securely'}</span>
       </span>
     </label>
-    <label className={`verify-option${method === 'manual-upload' ? ' selected' : ''}`}>
-      <input type="radio" name="verify-identity-method" checked={method === 'manual-upload'} onChange={() => onChoose('/report/identity/upload')} />
+
+    <label className={`verify-option${method === 'manual-upload' || uploadOpen ? ' selected' : ''}`}>
+      <input type="radio" name="verify-identity-method" checked={method === 'manual-upload' || uploadOpen} onChange={openUpload} />
       <span className="verify-option-icon upload"><UploadGlyph /></span>
       <span className="verify-option-body">
         <span className="verify-option-title">Upload a document</span>
-        <span className="verify-option-sub">JPG, PNG or PDF · Max 5MB</span>
+        <span className="verify-option-sub">JPG or PNG · Max 5MB</span>
       </span>
     </label>
+
+    {uploadOpen && <div className="identity-upload-panel">
+      <label className="identity-upload-type">Document type
+        <select value={docType} onChange={e => setDocType(e.target.value as IdentityDocumentType)}>
+          <option value="">Select a document type</option>
+          {ID_DOCUMENT_OPTIONS.map(o => <option key={o.type} value={o.type}>{o.label}</option>)}
+        </select>
+      </label>
+      <div
+        className={`identity-dropzone${dragActive ? ' drag-active' : ''}`}
+        onClick={() => docType && fileInputRef.current?.click()}
+        onDragOver={event => { event.preventDefault(); setDragActive(true) }}
+        onDragLeave={() => setDragActive(false)}
+        onDrop={onDrop}
+      >
+        <span className="identity-dropzone-icon" aria-hidden="true"><UploadGlyph /></span>
+        <p>Drag and drop your document here or</p>
+        <button type="button" className="button secondary" onClick={event => { event.stopPropagation(); fileInputRef.current?.click() }} disabled={!docType}>Choose file</button>
+        <p className="identity-dropzone-hint">JPG or PNG · Max 5MB</p>
+        <input ref={fileInputRef} type="file" accept=".jpg,.jpeg,.png,image/jpeg,image/png" hidden onChange={onFileChosen} />
+      </div>
+      {error && <p className="field-error">{error}</p>}
+    </div>}
+
     <p className="verify-identity-note"><ShieldGlyph /> Documents are secure and only used for this report.</p>
   </div>
 }
@@ -112,7 +209,15 @@ export function ReportReview() {
 
   const editDetails = () => navigate(detailsPath(category))
   const editEvidence = () => navigate(evidencePath(category))
-  const editIdentity = () => navigate('/report/identity')
+  const editIdentity = () => setReport(current => ({
+    ...current,
+    complainant: {
+      ...current.complainant,
+      identityMethod: null,
+      identityConsent: { granted: false, purpose: null },
+      identityDocument: { type: null, issuer: null, fileName: null, fileSize: null, mimeType: null, uploaded: false, source: null, status: 'not-provided' },
+    },
+  }))
 
   const removeEvidence = (id: string) => setReport(current => ({ ...current, evidence: current.evidence.filter(item => item.id !== id) }))
 
@@ -337,7 +442,7 @@ export function ReportReview() {
         {docUploaded && report.complainant.identityMethod !== 'digilocker' && <p className="review-field-value your-details-doc-type">{ID_DOCUMENT_LABELS[report.complainant.identityDocument.type ?? ''] ?? 'Document'}</p>}
         {docUploaded && <button type="button" className="link-button" onClick={editIdentity}>Change document</button>}
 
-        <VerifyIdentityChooser method={report.complainant.identityMethod} onChoose={navigate} />
+        <VerifyIdentityChooser />
 
         <details className="why-we-need-this">
           <summary>Why we need this</summary>

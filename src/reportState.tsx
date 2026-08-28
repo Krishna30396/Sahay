@@ -1,5 +1,9 @@
 import { createContext, ReactNode, useContext, useMemo, useState } from 'react'
 
+// Shared demo credential used throughout the prototype wherever a mobile number is
+// pre-filled, displayed, or verified — kept consistent across the whole flow.
+export const DEMO_MOBILE = '9876543210'
+
 export type EvidenceType =
   | 'transaction' | 'conversation' | 'contact' | 'website' | 'other'
   | 'account-alert' | 'profile' | 'identity-info' | 'screenshot'

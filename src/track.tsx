@@ -1,4 +1,9 @@
 import { Link } from './router'
+import { DEMO_MOBILE } from './reportState'
+
+function formatMobile(mobile: string) {
+  return `${mobile.slice(0, 5)} ${mobile.slice(5)}`
+}
 
 function iconProps() {
   return { viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 1.8, strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const, 'aria-hidden': true }
@@ -134,7 +139,7 @@ export function TrackReport() {
 
         <div className="track-side-card note">
           <BellGlyph />
-          <p>We’ll notify you at <strong>+91 98765 43210</strong> for any updates regarding this report.</p>
+          <p>We’ll notify you at <strong>+91 {formatMobile(DEMO_MOBILE)}</strong> for any updates regarding this report.</p>
         </div>
       </aside>
     </div>

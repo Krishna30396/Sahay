@@ -1,6 +1,6 @@
 import { KeyboardEvent, ReactElement, useEffect, useRef, useState } from 'react'
 import { Link, RouterProvider, useRouter } from './router'
-import { ReportProvider, useReport } from './reportState'
+import { DEMO_MOBILE, ReportProvider, useReport } from './reportState'
 import { NotFound, ReportAssisted, ReportManualEntry } from './report'
 import { ReportDetails } from './details'
 import { ReportEvidence } from './evidence'
@@ -99,9 +99,10 @@ function NextSteps() {
 function VerifyMobilePanel({ onVerified }: { onVerified: () => void }) {
   const { report, setReport } = useReport()
   const [step, setStep] = useState<'phone' | 'otp' | 'success'>('phone')
-  const [mobile, setMobile] = useState(report.complainant.mobile ?? '')
+  const [mobile, setMobile] = useState(report.complainant.mobile || DEMO_MOBILE)
   const [sending, setSending] = useState(false)
   const [otp, setOtp] = useState(['', '', '', '', '', ''])
+  const [otpRound, setOtpRound] = useState(0)
   const [verifying, setVerifying] = useState(false)
   const [countdown, setCountdown] = useState(3)
   const otpRefs = useRef<(HTMLInputElement | null)[]>([])
@@ -115,6 +116,29 @@ function VerifyMobilePanel({ onVerified }: { onVerified: () => void }) {
     return () => clearTimeout(timer)
   }, [step, countdown, onVerified])
 
+  // Demo credential: auto-fill a random 6-digit OTP a few seconds after arriving on
+  // this step, one digit at a time, so the flow is visibly a demo — the user still has
+  // to press "Verify mobile" themselves to continue.
+  useEffect(() => {
+    if (step !== 'otp' || otpRound === 0) return
+    let cancelled = false
+    const timers: ReturnType<typeof setTimeout>[] = []
+    const demoOtp = Array.from({ length: 6 }, () => String(Math.floor(Math.random() * 10)))
+    timers.push(setTimeout(() => {
+      demoOtp.forEach((digit, index) => {
+        timers.push(setTimeout(() => {
+          if (cancelled) return
+          setOtp(current => {
+            const next = [...current]
+            next[index] = digit
+            return next
+          })
+        }, index * 220))
+      })
+    }, 3500))
+    return () => { cancelled = true; timers.forEach(clearTimeout) }
+  }, [step, otpRound])
+
   const sendOtp = () => {
     if (!mobileValid || sending) return
     setSending(true)
@@ -123,6 +147,7 @@ function VerifyMobilePanel({ onVerified }: { onVerified: () => void }) {
       setSending(false)
       setOtp(['', '', '', '', '', ''])
       setStep('otp')
+      setOtpRound(round => round + 1)
       setTimeout(() => otpRefs.current[0]?.focus(), 0)
     }, 500)
   }

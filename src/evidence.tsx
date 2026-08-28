@@ -326,6 +326,19 @@ export function ReportEvidence() {
     if (event.dataTransfer.files) addFiles(event.dataTransfer.files)
   }
 
+  const addDemoDocument = () => {
+    const item: EvidenceRecord = {
+      id: makeId(),
+      type: fileTypes[0] ?? 'other',
+      fileName: 'payment-screenshot-demo.png',
+      mimeType: 'image/png',
+      size: 248000,
+      source: 'ai-suggested',
+      confirmed: true,
+    }
+    setReport(current => ({ ...current, evidence: [...current.evidence, item] }))
+  }
+
   const removeItem = (item: EvidenceRecord) => {
     if (item.previewUrl) URL.revokeObjectURL(item.previewUrl)
     setReport(current => ({ ...current, evidence: current.evidence.filter(i => i.id !== item.id) }))
@@ -371,6 +384,7 @@ export function ReportEvidence() {
           <p className="evidence-dropzone-hint">Screenshots, PDFs, JPG, PNG · Max 10MB per file</p>
           <input ref={fileInputRef} type="file" multiple accept=".jpg,.jpeg,.png,.pdf,image/jpeg,image/png,application/pdf" hidden onChange={onFileChosen} />
         </div>
+        <button type="button" className="demo-fill-btn" onClick={addDemoDocument}>✨ Add a demo document</button>
 
         {error && <p className="field-error">{error}</p>}
 

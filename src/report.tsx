@@ -214,6 +214,7 @@ export function VoiceAssistedEntry({
                 readOnly={listening}
               />
             </div>
+            {!listening && <button type="button" className="demo-fill-btn" onClick={() => onTextChange(placeholder)}>✨ Use a demo example</button>}
             {speech.state === 'error' && <p className="field-error">{messageForSpeechError(speech.errorCode)}</p>}
             {speech.state === 'unsupported' && <p className="helper">Voice input isn’t supported in this browser. Try Chrome or Edge, or type your description below.</p>}
             <p className="voice-tip">💡 You can review and edit this in the next step.</p>
@@ -385,7 +386,7 @@ export function ReportAssisted() {
       }}
       title="Tell us what happened"
       supportingText="Speak in your own words. We’ll turn it into text for your report."
-      placeholder="I lost ₹50,000 through a UPI scam."
+      placeholder="Yesterday evening around 6 pm, someone called claiming to be a bank representative and I transferred ₹50,000 via UPI after sharing an OTP."
       text={text}
       onTextChange={setText}
       onAppendSpeech={appendSpeech}
@@ -429,6 +430,19 @@ export function ReportManualEntry() {
 
   const update = <K extends keyof ManualDraft>(key: K, value: ManualDraft[K]) => setDraft(current => ({ ...current, [key]: value }))
 
+  const fillDemo = () => setDraft({
+    merchantName: 'HDFC Bank',
+    transactionId: '412233445566',
+    transactionDate: formatDemoDate(-1),
+    amount: '50000',
+    paymentMethod: 'UPI',
+    date: formatDemoDate(-1),
+    approximateTime: 'evening, around 6 pm',
+    contactMethod: 'Phone call',
+    impersonation: 'Bank / financial institution',
+    description: 'I received a call from someone claiming to be a bank representative and I transferred ₹50,000 via UPI after being asked to share a one-time code that appeared on my phone screen during the call.',
+  })
+
   const submit = () => {
     setReport(current => ({
       ...current,
@@ -459,6 +473,7 @@ export function ReportManualEntry() {
     <div className="report-intro">
       <h1>Enter the details yourself</h1>
       <p className="lead">Fill in what you know. You can leave anything blank and add it later.</p>
+      <button type="button" className="demo-fill-btn" onClick={fillDemo}>✨ Fill demo details</button>
     </div>
     <form className="review-form" onSubmit={event => { event.preventDefault(); submit() }}>
       <section className="required-block">

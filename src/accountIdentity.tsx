@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from './router'
 import { useReport } from './reportState'
-import { DescriptionField, ProgressSteps, StepActionBar, VoiceAssistedEntry, extractApproximateTime, extractDate } from './report'
+import { DescriptionField, ProgressSteps, StepActionBar, VoiceAssistedEntry, extractApproximateTime, extractDate, formatDemoDate } from './report'
 import { generateStructuredDescription } from './validation'
 import {
   ACCESS_STATUS_OPTIONS,
@@ -202,6 +202,16 @@ export function AccountIdentityManual() {
   const update = <K extends keyof AccountManualDraft>(key: K, value: AccountManualDraft[K]) => setDraft(current => ({ ...current, [key]: value }))
   const canContinue = draft.affectedType.length > 0
 
+  const fillDemo = () => setDraft({
+    affectedType: 'Hacked account',
+    accountPlatform: 'Instagram',
+    accessStatus: 'No',
+    date: formatDemoDate(-1),
+    approximateTime: 'morning',
+    misuseType: 'I was locked out',
+    description: 'My Instagram account was taken over yesterday. The person changed my email and started messaging my contacts.',
+  })
+
   const submit = () => {
     if (!canContinue) return
     setReport(current => ({
@@ -231,6 +241,7 @@ export function AccountIdentityManual() {
     <div className="report-intro">
       <h1>Tell us about the problem</h1>
       <p className="lead">Choose the closest match, then add a few details.</p>
+      <button type="button" className="demo-fill-btn" onClick={fillDemo}>✨ Fill demo details</button>
     </div>
     <form className="review-form" onSubmit={event => { event.preventDefault(); submit() }}>
       <div className="field-grid">
