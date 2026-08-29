@@ -2,7 +2,7 @@ import { ChangeEvent, DragEvent, ReactElement, useEffect, useMemo, useRef, useSt
 import { useRouter } from './router'
 import { EvidenceType, ReportCategory, SuspectInfo, useReport } from './reportState'
 import type { EvidenceItem as EvidenceRecord } from './reportState'
-import { MissingInfoNote, ProgressSteps, StepActionBar } from './report'
+import { ProgressSteps, StepActionBar } from './report'
 import { detailsPath, reviewPath } from './reportRoutes'
 
 const ALLOWED_MIME = ['image/jpeg', 'image/png', 'application/pdf']
@@ -16,7 +16,7 @@ interface SectionConfig {
 }
 
 const FINANCIAL_SECTIONS: SectionConfig[] = [
-  { type: 'transaction', title: 'Payment / transaction proof', description: 'Receipt, UTR, or bank / wallet transaction screenshot.', mode: 'file' },
+  { type: 'transaction', title: 'Payment proof', description: 'Receipt, UTR or transaction screenshot.', mode: 'file' },
   { type: 'conversation', title: 'Messages or screenshots', description: 'WhatsApp, SMS, email or other communication.', mode: 'file' },
   { type: 'contact', title: 'Phone / UPI details', description: 'Phone number, UPI ID or account details used by the caller.', mode: 'details' },
   { type: 'website', title: 'Website or social profile', description: 'Details of the website or profile involved, if applicable.', mode: 'file' },
@@ -149,12 +149,6 @@ function ImageGlyph() {
   </svg>
 }
 
-function HeartGlyph() {
-  return <svg {...iconProps()}>
-    <path d="M12 20.5s-7.5-4.5-9.5-9A5 5 0 0 1 12 6.5 5 5 0 0 1 21.5 11.5c-2 4.5-9.5 9-9.5 9z" />
-  </svg>
-}
-
 function TrashGlyph() {
   return <svg {...iconProps()}>
     <polyline points="4 7 20 7" />
@@ -176,11 +170,18 @@ const SECTION_ICONS: Partial<Record<EvidenceType, () => ReactElement>> = {
   screenshot: ImageGlyph,
 }
 
-function HelpfulEvidenceSidebar({ sections }: { sections: SectionConfig[] }) {
-  const fileSections = sections.filter(s => s.mode === 'file')
+function InfoCircleGlyph() {
+  return <svg viewBox="0 0 20 20" fill="none" aria-hidden="true">
+    <circle cx="10" cy="10" r="8.5" stroke="currentColor" strokeWidth="1.4" />
+    <line x1="10" y1="9" x2="10" y2="14" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+    <circle cx="10" cy="6.3" r="1" fill="currentColor" />
+  </svg>
+}
+
+function HelpfulEvidenceSidebar({ sections, onAddSuspect }: { sections: SectionConfig[]; onAddSuspect: () => void }) {
+  const fileSections = sections.filter(s => s.mode === 'file').slice(0, 2)
   return <aside className="needed helpful-evidence-card">
-    <h2>Helpful evidence</h2>
-    <p className="helper">Add whatever you have.</p>
+    <h2>What can help?</h2>
     <ul className="helpful-evidence-list">
       {fileSections.map(section => {
         const Icon = SECTION_ICONS[section.type] ?? FolderGlyph
@@ -192,10 +193,19 @@ function HelpfulEvidenceSidebar({ sections }: { sections: SectionConfig[] }) {
           </div>
         </li>
       })}
+      <li className="helpful-evidence-item helpful-evidence-item-action">
+        <button type="button" className="helpful-evidence-item-btn" onClick={onAddSuspect}>
+          <span className="review-field-icon" aria-hidden="true"><ProfileGlyph /></span>
+          <div>
+            <h4>Suspect details</h4>
+            <p>Mobile number, website or other details</p>
+          </div>
+        </button>
+      </li>
     </ul>
     <div className="helpful-evidence-footer">
-      <HeartGlyph />
-      <p><strong>Don’t have these?</strong> That’s okay. You can continue.</p>
+      <InfoCircleGlyph />
+      <p>Only have some of this? That’s fine.</p>
     </div>
   </aside>
 }
@@ -223,9 +233,12 @@ function EvidenceRow({ item, onView, onRemove }: {
   </li>
 }
 
-function SuspectSection({ suspect, onChange }: { suspect: SuspectInfo; onChange: <K extends keyof SuspectInfo>(key: K, value: SuspectInfo[K]) => void }) {
-  const hasAny = Object.values(suspect).some(v => !!v)
-  const [open, setOpen] = useState(hasAny || window.location.hash === '#suspect')
+function SuspectSection({ suspect, onChange, open, onOpen }: {
+  suspect: SuspectInfo
+  onChange: <K extends keyof SuspectInfo>(key: K, value: SuspectInfo[K]) => void
+  open: boolean
+  onOpen: () => void
+}) {
   const firstFieldRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
@@ -235,7 +248,7 @@ function SuspectSection({ suspect, onChange }: { suspect: SuspectInfo; onChange:
   if (!open) {
     return <section id="suspect" className="suspect-section">
       <h2>Do you know anything about the person involved?</h2>
-      <button type="button" className="button secondary suspect-add-button" onClick={() => setOpen(true)}>
+      <button type="button" className="button secondary suspect-add-button" onClick={onOpen}>
         <span className="suspect-add-icon"><ProfileGlyph /></span> Add suspect information
       </button>
     </section>
@@ -278,13 +291,16 @@ export function ReportEvidence() {
 
   const sections = useMemo(() => sectionsFor(category, issueType), [category, issueType])
   const fileTypes = useMemo(() => sections.filter(s => s.mode === 'file').map(s => s.type), [sections])
-  const detailsSection = useMemo(() => sections.find(s => s.mode === 'details') ?? null, [sections])
 
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [dragActive, setDragActive] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [detailsOpen, setDetailsOpen] = useState(false)
-  const [detailsDraft, setDetailsDraft] = useState('')
+  const [suspectOpen, setSuspectOpen] = useState(() => Object.values(report.suspect).some(v => !!v) || window.location.hash === '#suspect')
+
+  const goToSuspect = () => {
+    setSuspectOpen(true)
+    requestAnimationFrame(() => document.getElementById('suspect')?.scrollIntoView({ behavior: 'smooth', block: 'start' }))
+  }
 
   const addFiles = (files: FileList | File[]) => {
     const list = Array.from(files)
@@ -326,19 +342,6 @@ export function ReportEvidence() {
     if (event.dataTransfer.files) addFiles(event.dataTransfer.files)
   }
 
-  const addDemoDocument = () => {
-    const item: EvidenceRecord = {
-      id: makeId(),
-      type: fileTypes[0] ?? 'other',
-      fileName: 'payment-screenshot-demo.png',
-      mimeType: 'image/png',
-      size: 248000,
-      source: 'ai-suggested',
-      confirmed: true,
-    }
-    setReport(current => ({ ...current, evidence: [...current.evidence, item] }))
-  }
-
   const removeItem = (item: EvidenceRecord) => {
     if (item.previewUrl) URL.revokeObjectURL(item.previewUrl)
     setReport(current => ({ ...current, evidence: current.evidence.filter(i => i.id !== item.id) }))
@@ -348,14 +351,6 @@ export function ReportEvidence() {
     if (item.previewUrl) window.open(item.previewUrl, '_blank', 'noopener')
   }
 
-  const saveDetails = (text: string) => {
-    if (!detailsSection || !text.trim()) return
-    const item: EvidenceRecord = { id: makeId(), type: detailsSection.type, description: text.trim(), source: 'user', confirmed: true }
-    setReport(current => ({ ...current, evidence: [...current.evidence, item] }))
-    setDetailsDraft('')
-    setDetailsOpen(false)
-  }
-
   const updateSuspect = <K extends keyof SuspectInfo>(key: K, value: SuspectInfo[K]) =>
     setReport(current => ({ ...current, suspect: { ...current.suspect, [key]: value } }))
 
@@ -363,13 +358,15 @@ export function ReportEvidence() {
 
   return <main className="report-page report-page-wide">
     <ProgressSteps current="Evidence" />
-    <div className="report-intro">
-      <h1>Add evidence</h1>
-      <p className="lead">Add any files that help support your report. You can continue even if you don’t have all of them.</p>
-    </div>
+    <div className="voice-layout evidence-voice-layout">
+      <div className="voice-copy-row">
+        <div className="report-intro">
+          <h1>Add evidence</h1>
+          <p className="lead">Add any files that help support your report. You can continue even if you don’t have all of them.</p>
+        </div>
+      </div>
 
-    <div className="evidence-layout">
-      <div className="evidence-main">
+      <div className="voice-main">
         <div
           className={`evidence-dropzone${dragActive ? ' drag-active' : ''}`}
           onClick={() => fileInputRef.current?.click()}
@@ -384,20 +381,7 @@ export function ReportEvidence() {
           <p className="evidence-dropzone-hint">Screenshots, PDFs, JPG, PNG · Max 10MB per file</p>
           <input ref={fileInputRef} type="file" multiple accept=".jpg,.jpeg,.png,.pdf,image/jpeg,image/png,application/pdf" hidden onChange={onFileChosen} />
         </div>
-        <button type="button" className="demo-fill-btn" onClick={addDemoDocument}>✨ Add a demo document</button>
-
         {error && <p className="field-error">{error}</p>}
-
-        {detailsSection && (detailsOpen
-          ? <form className="contact-form evidence-details-form" onSubmit={e => { e.preventDefault(); saveDetails(detailsDraft) }}>
-              <label htmlFor="evidence-details-input">{detailsSection.title}</label>
-              <input id="evidence-details-input" value={detailsDraft} onChange={e => setDetailsDraft(e.target.value)} placeholder={detailsSection.description} autoFocus />
-              <div className="category-actions">
-                <button type="submit" className="button secondary" disabled={!detailsDraft.trim()}>Save</button>
-                <button type="button" className="link-button" onClick={() => { setDetailsDraft(''); setDetailsOpen(false) }}>Cancel</button>
-              </div>
-            </form>
-          : <button type="button" className="link-button evidence-details-toggle" onClick={() => setDetailsOpen(true)}>+ Add {detailsSection.title.toLowerCase()} instead</button>)}
 
         {hasEvidence
           ? <section className="uploaded-files">
@@ -414,12 +398,10 @@ export function ReportEvidence() {
             </section>
           : <p className="field-error">Add at least one piece of relevant evidence before continuing.</p>}
 
-        <MissingInfoNote missing={report.missingInformation} onAddDetails={() => navigate(detailsPath(category))} />
-
-        <SuspectSection suspect={report.suspect} onChange={updateSuspect} />
+        <SuspectSection suspect={report.suspect} onChange={updateSuspect} open={suspectOpen} onOpen={() => setSuspectOpen(true)} />
       </div>
 
-      <HelpfulEvidenceSidebar sections={sections} />
+      <HelpfulEvidenceSidebar sections={sections} onAddSuspect={goToSuspect} />
     </div>
 
     <p className="safety-note">Use only information related to this incident. Do not upload passwords, OTPs, PINs or unrelated personal information.</p>

@@ -77,12 +77,12 @@ export function OtherAssisted() {
     <ProgressSteps current="Start" />
     <VoiceAssistedEntry
       needed={{
-        heading: 'What you’ll need',
+        heading: 'What we’ll need from you',
         items: [
-          'What happened',
-          'Which platform or app it happened on',
-          'Roughly when',
-          'Any profile, account or link involved',
+          { label: 'What happened', done: extractOtherIssueType(text) != null },
+          { label: 'Which platform or app it happened on', done: extractOtherPlatform(text) != null },
+          { label: 'Roughly when', done: extractDate(text) != null },
+          { label: 'Any profile, account or link involved', done: false },
         ],
       }}
       title="Tell us what happened"

@@ -91,12 +91,12 @@ export function AccountIdentityAssisted() {
     <ProgressSteps current="Start" />
     <VoiceAssistedEntry
       needed={{
-        heading: 'What you’ll need',
+        heading: 'What we’ll need from you',
         items: [
-          'Which account or platform is affected',
-          'Roughly when you noticed',
-          'Whether you can still access the account',
-          'How you found out',
+          { label: 'Which account or platform is affected', done: Boolean(extractAffectedType(text) || extractAccountPlatform(text)) },
+          { label: 'Roughly when you noticed', done: Boolean(extractDate(text) || extractApproximateTime(text)) },
+          { label: 'Whether you can still access the account', done: extractAccessStatus(text) != null },
+          { label: 'How you found out', done: false },
         ],
       }}
       title="Tell us what happened"

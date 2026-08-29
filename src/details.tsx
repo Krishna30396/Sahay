@@ -1,7 +1,7 @@
 import { ReactNode, useEffect } from 'react'
-import { Link, useRouter } from './router'
+import { useRouter } from './router'
 import { AccountIdentityInfo, OtherIncidentInfo, ReportIncident, useReport } from './reportState'
-import { DescriptionField, IMPERSONATION_OPTIONS, ProgressSteps, StepActionBar } from './report'
+import { DescriptionField, IMPERSONATION_OPTIONS, NeededItem, NeededSidebar, ProgressSteps, StepActionBar } from './report'
 import { assistedReviewPath, evidencePath, manualPath, startPath } from './reportRoutes'
 import { financialRequiredErrors } from './validation'
 import {
@@ -19,51 +19,12 @@ function SourceTag() {
   return <span className="source-tag">From your description</span>
 }
 
-function iconProps() {
-  return { viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 1.8, strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const, 'aria-hidden': true }
-}
-
 function CheckBadgeGlyph() {
   return <svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><circle cx="10" cy="10" r="9" fill="#16a34a" /><path d="M6.3 10.3l2.3 2.3 5-5" stroke="#fff" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" /></svg>
 }
 
 function InfoDotGlyph() {
   return <svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><circle cx="10" cy="10" r="8.5" stroke="currentColor" strokeWidth="1.4" /><line x1="10" y1="9" x2="10" y2="14" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" /><circle cx="10" cy="6.3" r="1" fill="currentColor" /></svg>
-}
-
-function PhoneGlyph() {
-  return <svg {...iconProps()}><path d="M4 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L14 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 2 6a2 2 0 0 1 2-2z" /></svg>
-}
-
-function GlobeGlyph() {
-  return <svg {...iconProps()}><circle cx="12" cy="12" r="9" /><line x1="3" y1="12" x2="21" y2="12" /><path d="M12 3a15 15 0 0 1 0 18a15 15 0 0 1 0-18z" /></svg>
-}
-
-function MailGlyph() {
-  return <svg {...iconProps()}><rect x="3" y="5" width="18" height="14" rx="2" /><path d="M3 7l9 6 9-6" /></svg>
-}
-
-function DotsGlyph() {
-  return <svg {...iconProps()} strokeWidth="2.4"><circle cx="5" cy="12" r="0.6" /><circle cx="12" cy="12" r="0.6" /><circle cx="19" cy="12" r="0.6" /></svg>
-}
-
-function HelpfulSidebar({ addPath }: { addPath: string }) {
-  const items: [ReactNode, string][] = [
-    [<PhoneGlyph />, 'Suspect mobile number'],
-    [<GlobeGlyph />, 'Website or social profile'],
-    [<MailGlyph />, 'Email address'],
-    [<DotsGlyph />, 'Other suspect details'],
-  ]
-  return <aside className="needed helpful-sidebar">
-    <h2>Helpful if you have it</h2>
-    <ul className="helpful-list">
-      {items.map(([icon, label]) => <li key={label} className="helpful-item">
-        <span className="helpful-item-icon" aria-hidden="true">{icon}</span>
-        <span className="helpful-item-label">{label}</span>
-        <Link className="helpful-add" to={`${addPath}#suspect`}>Add</Link>
-      </li>)}
-    </ul>
-  </aside>
 }
 
 const FIELD_HELPERS: Record<string, string> = {
@@ -212,7 +173,7 @@ export function ReportDetails() {
   const canContinue = financialErrors.length === 0
 
   const heading = category === 'financial-fraud'
-    ? (isAssisted ? 'Here’s what we understood' : 'Check your details')
+    ? (isAssisted ? 'Here’s what we understood' : 'Tell us the details')
     : (isAssisted ? 'Review what we understood' : 'Review your details')
 
   const backTo = () => {
@@ -220,74 +181,103 @@ export function ReportDetails() {
     navigate(isAssisted ? assistedReviewPath(category) : manualPath(category))
   }
 
+  const hasDateOrTime = Boolean(report.incident.date || report.incident.approximateTime)
+  let neededItems: NeededItem[]
+  if (category === 'account-identity') {
+    neededItems = [
+      { label: 'Which account or platform is affected', done: Boolean(report.accountIdentity.affectedType || report.accountIdentity.accountPlatform) },
+      { label: 'Roughly when you noticed', done: hasDateOrTime },
+      { label: 'Whether you can still access the account', done: report.accountIdentity.accessStatus != null },
+      { label: 'How you found out', done: false },
+    ]
+  } else if (category === 'other-cyber') {
+    neededItems = [
+      { label: 'What happened', done: report.otherIncident.issueType != null },
+      { label: 'Which platform or app it happened on', done: report.otherIncident.platform != null },
+      { label: 'Roughly when', done: report.incident.date != null },
+      { label: 'Any profile, account or link involved', done: report.otherIncident.personOrAccountIdentifier != null },
+    ]
+  } else {
+    neededItems = [
+      { label: 'Approximate date and time', done: hasDateOrTime },
+      { label: 'Amount involved', done: report.incident.amount != null },
+      { label: 'Payment method', done: report.incident.paymentMethod != null },
+      { label: 'Transaction/reference details, if available', done: report.transaction.transactionId != null },
+      { label: 'Transaction / UTR number', done: report.transaction.transactionId != null },
+    ]
+  }
+
   return <main className="report-page report-page-wide">
     <ProgressSteps current="Details" />
-    <div className="report-intro">
-      <h1>{heading}</h1>
-      {isAssisted
-        ? <>
-            <p className="lead">We filled these in from what you told us.</p>
-            <p className="lead">Check anything that’s missing or incorrect.</p>
-          </>
-        : <>
-            <p className="lead">Fill in what you know below.</p>
-            <p className="lead">You can leave anything blank and add it later.</p>
-          </>}
-    </div>
-
-    {isAssisted && <div className="understood-pill-row">
-      <span className="understood-pill">
-        <CheckBadgeGlyph /> Details understood from your description <InfoDotGlyph />
-      </span>
-    </div>}
-
-    <div className="details-layout">
-      <form className="review-form details-card" onSubmit={event => event.preventDefault()}>
-        <h2 className="details-section-title">Incident details</h2>
-        <div className="field-grid">
-          <label>{typeLabel}
-            <input value={typeValue} disabled />
-          </label>
-          <label>When did it happen?
-            <div className="field-split">
-              <input value={report.incident.date ?? ''} onChange={e => updateIncident('date', e.target.value || null)} placeholder="Date not provided" />
-              <input value={report.incident.approximateTime ?? ''} onChange={e => updateIncident('approximateTime', e.target.value || null)} placeholder="Time not provided" />
-            </div>
-          </label>
-          {extraFields}
+    <div className="voice-layout details-voice-layout">
+      <div className="voice-copy-row">
+        <div className="report-intro">
+          <h1>{heading}</h1>
+          {isAssisted
+            ? <>
+                <p className="lead">We filled these in from what you told us.</p>
+                <p className="lead">Check anything that’s missing or incorrect.</p>
+              </>
+            : isFinancial
+              ? <p className="lead">Provide any details you know about the incident.</p>
+              : <>
+                  <p className="lead">Fill in what you know below.</p>
+                  <p className="lead">You can leave anything blank and add it later.</p>
+                </>}
         </div>
+        {isAssisted && <span className="understood-pill">
+          <CheckBadgeGlyph /> Details understood from your description <InfoDotGlyph />
+        </span>}
+      </div>
 
-        {isFinancial && <>
-          <h2 className="details-section-title">Transaction details</h2>
+      <div className="voice-main">
+        <form className="review-form details-card" onSubmit={event => event.preventDefault()}>
+          <h2 className="details-section-title">Incident details</h2>
           <div className="field-grid">
-            <label>Bank / wallet / merchant {isAssisted && report.transaction.merchantName && <SourceTag />}
-              <input value={report.transaction.merchantName ?? ''} onChange={e => updateTransaction('merchantName', e.target.value)} placeholder="e.g. HDFC Bank, Paytm" />
-              {!report.transaction.merchantName && <span className="detail-field-helper field-error">This is required for a financial-fraud complaint.</span>}
+            <label>{typeLabel}
+              <input value={typeValue} disabled />
             </label>
-            <label>Transaction / UTR number (if available) {isAssisted && report.transaction.transactionId && <SourceTag />}
-              <input value={report.transaction.transactionId ?? ''} onChange={e => updateTransaction('transactionId', e.target.value)} placeholder="12-digit UTR" />
-              {(!report.transaction.transactionId || !/^\d{12}$/.test(report.transaction.transactionId)) && <span className="detail-field-helper field-error">Must be exactly 12 digits.</span>}
+            <label>When did it happen?
+              <div className="field-split">
+                <input value={report.incident.date ?? ''} onChange={e => updateIncident('date', e.target.value || null)} placeholder="Date not provided" />
+                <input value={report.incident.approximateTime ?? ''} onChange={e => updateIncident('approximateTime', e.target.value || null)} placeholder="Time not provided" />
+              </div>
             </label>
-            <label>Transaction date
-              <input value={report.transaction.transactionDate ?? ''} onChange={e => updateTransaction('transactionDate', e.target.value)} placeholder="e.g. 24 August 2026" />
-              {!report.transaction.transactionDate && <span className="detail-field-helper field-error">This is required for a financial-fraud complaint.</span>}
-            </label>
+            {extraFields}
           </div>
-        </>}
 
-        <DescriptionField
-          value={report.incident.description}
-          onChange={value => updateIncident('description', value)}
-          generated={isAssisted}
-        />
-      </form>
+          {isFinancial && <>
+            <h2 className="details-section-title">Transaction details</h2>
+            <div className="field-grid">
+              <label>Bank / wallet / merchant {isAssisted && report.transaction.merchantName && <SourceTag />}
+                <input value={report.transaction.merchantName ?? ''} onChange={e => updateTransaction('merchantName', e.target.value)} placeholder="e.g. HDFC Bank, Paytm" />
+                {!report.transaction.merchantName && <span className="detail-field-helper field-error">This is required for a financial-fraud complaint.</span>}
+              </label>
+              <label>Transaction / UTR number (if available) {isAssisted && report.transaction.transactionId && <SourceTag />}
+                <input value={report.transaction.transactionId ?? ''} onChange={e => updateTransaction('transactionId', e.target.value)} placeholder="12-digit UTR" />
+                {(!report.transaction.transactionId || !/^\d{12}$/.test(report.transaction.transactionId)) && <span className="detail-field-helper field-error">Must be exactly 12 digits.</span>}
+              </label>
+              <label>Transaction date
+                <input value={report.transaction.transactionDate ?? ''} onChange={e => updateTransaction('transactionDate', e.target.value)} placeholder="e.g. 24 August 2026" />
+                {!report.transaction.transactionDate && <span className="detail-field-helper field-error">This is required for a financial-fraud complaint.</span>}
+              </label>
+            </div>
+          </>}
 
-      <HelpfulSidebar addPath={evidencePath(category)} />
+          <DescriptionField
+            value={report.incident.description}
+            onChange={value => updateIncident('description', value)}
+            generated={isAssisted}
+          />
+        </form>
+
+        {financialErrors.length > 0 && <p className="field-error">
+          Complete the required financial-fraud fields above before continuing.
+        </p>}
+      </div>
+
+      <NeededSidebar heading="What we’ll need from you" items={neededItems} />
     </div>
-
-    {financialErrors.length > 0 && <p className="field-error">
-      Complete the required financial-fraud fields above before continuing.
-    </p>}
 
     <StepActionBar
       onBack={backTo}

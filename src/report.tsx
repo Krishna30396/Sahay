@@ -94,20 +94,24 @@ function StopGlyph() {
 
 function CheckCircleGlyph() {
   return <svg viewBox="0 0 20 20" fill="none" aria-hidden="true">
-    <circle cx="10" cy="10" r="9" stroke="#0c43c1" strokeWidth="1.5" />
-    <path d="M6.3 10.3l2.3 2.3 5-5" stroke="#0c43c1" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+    <circle cx="10" cy="10" r="9" stroke="currentColor" strokeWidth="1.5" />
+    <path d="M6.3 10.3l2.3 2.3 5-5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
   </svg>
 }
 
-function NeededSidebar({ heading, items }: { heading: string; items: string[] }) {
-  return <section className="needed voice-sidebar">
+export interface NeededItem {
+  label: string
+  done: boolean
+}
+
+export function NeededSidebar({ heading, items, variant = 'voice-sidebar' }: { heading: string; items: NeededItem[]; variant?: string }) {
+  return <section className={`needed ${variant}`}>
     <h2>{heading}</h2>
     <ul className="needed-list">
-      {items.map(item => <li key={item}><CheckCircleGlyph />{item}</li>)}
+      {items.map(item => <li key={item.label} className={item.done ? 'done' : ''}><CheckCircleGlyph />{item.label}</li>)}
     </ul>
     <div className="needed-footer">
-      <p className="needed-footer-title">Missing something?</p>
-      <p className="needed-footer-sub">You can add it later.</p>
+      <p className="needed-footer-sub">You can review and edit these details before submitting.</p>
     </div>
   </section>
 }
@@ -130,7 +134,7 @@ export function VoiceAssistedEntry({
   onManual,
   manualDescription = 'Enter the details step by step.',
 }: {
-  needed: { heading: string; items: string[] }
+  needed: { heading: string; items: NeededItem[] }
   title: string
   supportingText: string
   placeholder: string
@@ -374,13 +378,13 @@ export function ReportAssisted() {
     <ProgressSteps current="Start" />
     <VoiceAssistedEntry
       needed={{
-        heading: 'What you’ll need',
+        heading: 'What we’ll need from you',
         items: [
-          'Approximate date and time',
-          'Amount involved',
-          'Payment method',
-          'Transaction/reference details, if available',
-          'Screenshots, messages or other evidence',
+          { label: 'Approximate date and time', done: Boolean(extractDate(text) || extractApproximateTime(text)) },
+          { label: 'Amount involved', done: extractAmount(text) != null },
+          { label: 'Payment method', done: PAYMENT_KEYWORDS.some(([pattern]) => pattern.test(text)) },
+          { label: 'Transaction/reference details, if available', done: extractTransactionId(text) != null },
+          { label: 'Transaction / UTR number', done: extractTransactionId(text) != null },
         ],
       }}
       title="Tell us what happened"
