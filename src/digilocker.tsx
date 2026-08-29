@@ -27,7 +27,7 @@ const MOCK_DOCUMENTS: MockIssuedDocument[] = [
 export function DigiLockerTransition() {
   const { navigate } = useRouter()
   return <main className="report-page">
-    <ProgressSteps current="Review" />
+    <ProgressSteps current="Review / Submit" />
     <div className="report-intro">
       <h1>Continue to DigiLocker</h1>
       <p className="lead">DigiLocker will securely authenticate you and ask for your consent before sharing an identity document with Sahay.</p>
@@ -71,7 +71,7 @@ export function DigiLockerConsent() {
   }
 
   return <main className="report-page">
-    <ProgressSteps current="Review" />
+    <ProgressSteps current="Review / Submit" />
     <section className="digilocker-panel digilocker-external">
       <p className="eyebrow">DIGILOCKER CONNECTION — PROTOTYPE</p>
       <h1>Share a document with Sahay</h1>
@@ -119,7 +119,7 @@ export function DigiLockerDocuments() {
   }
 
   return <main className="report-page">
-    <ProgressSteps current="Review" />
+    <ProgressSteps current="Review / Submit" />
     <div className="report-intro">
       <h1>Choose a document</h1>
       <p className="lead">Select one issued identity document to share.</p>
@@ -177,7 +177,7 @@ export function DigiLockerConfirm() {
   }
 
   return <main className="report-page">
-    <ProgressSteps current="Review" />
+    <ProgressSteps current="Review / Submit" />
     <div className="report-intro">
       <h1>Confirm document sharing</h1>
       <p className="lead">You are about to share this document with Sahay.</p>
@@ -216,7 +216,7 @@ export function DigiLockerSuccess() {
   const issuer = report.complainant.identityDocument.issuer
 
   return <main className="report-page">
-    <ProgressSteps current="Review" />
+    <ProgressSteps current="Review / Submit" />
     <div className="report-intro">
       <h1>Identity document received</h1>
       <p className="lead">Your identity document was provided through DigiLocker.</p>

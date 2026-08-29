@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from './router'
 import { useReport } from './reportState'
-import { DescriptionField, ProgressSteps, StepActionBar, VoiceAssistedEntry, extractApproximateTime, extractDate, formatDemoDate } from './report'
+import { DescriptionField, ProgressSteps, StepActionBar, VoiceAssistedEntry, extractApproximateTime, extractDate } from './report'
 import { generateStructuredDescription } from './validation'
 import {
   IMMEDIATE_RISK_OPTIONS,
@@ -95,7 +95,7 @@ export function OtherAssisted() {
       onSubmit={submit}
       canContinue={canContinue}
       processing={processing}
-      manualPath="/report/other/manual"
+      onManual={() => navigate('/report/other/manual')}
     />
   </main>
 }
@@ -193,20 +193,6 @@ export function OtherManual() {
   const update = <K extends keyof OtherManualDraft>(key: K, value: OtherManualDraft[K]) => setDraft(current => ({ ...current, [key]: value }))
   const canContinue = draft.issueType.length > 0
 
-  const fillDemo = () => setDraft({
-    issueType: 'Threats or harassment',
-    date: formatDemoDate(-2),
-    approximateTime: 'night',
-    platform: 'WhatsApp',
-    contactMethod: 'Phone/SMS',
-    immediateRisk: 'No',
-    impersonationTarget: '',
-    identifier: '',
-    receivedVia: '',
-    stillHave: '',
-    description: 'I have been receiving threatening messages from an unknown number on WhatsApp for the past two days.',
-  })
-
   const submit = () => {
     if (!canContinue) return
     let description = draft.description
@@ -247,7 +233,6 @@ export function OtherManual() {
     <div className="report-intro">
       <h1>Tell us about the problem</h1>
       <p className="lead">Choose the closest match, then add a few details.</p>
-      <button type="button" className="demo-fill-btn" onClick={fillDemo}>✨ Fill demo details</button>
     </div>
     <form className="review-form" onSubmit={event => { event.preventDefault(); submit() }}>
       <div className="field-grid">

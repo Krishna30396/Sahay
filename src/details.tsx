@@ -216,7 +216,7 @@ export function ReportDetails() {
     : (isAssisted ? 'Review what we understood' : 'Review your details')
 
   const backTo = () => {
-    if (category === 'financial-fraud') { navigate(isAssisted ? '/report/assisted' : '/report/manual'); return }
+    if (category === 'financial-fraud') { navigate('/report/assisted'); return }
     navigate(isAssisted ? assistedReviewPath(category) : manualPath(category))
   }
 
@@ -224,8 +224,15 @@ export function ReportDetails() {
     <ProgressSteps current="Details" />
     <div className="report-intro">
       <h1>{heading}</h1>
-      <p className="lead">We filled these in from what you told us.</p>
-      <p className="lead">Check anything that’s missing or incorrect.</p>
+      {isAssisted
+        ? <>
+            <p className="lead">We filled these in from what you told us.</p>
+            <p className="lead">Check anything that’s missing or incorrect.</p>
+          </>
+        : <>
+            <p className="lead">Fill in what you know below.</p>
+            <p className="lead">You can leave anything blank and add it later.</p>
+          </>}
     </div>
 
     {isAssisted && <div className="understood-pill-row">

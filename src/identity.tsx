@@ -6,7 +6,7 @@ import { reviewPath } from './reportRoutes'
 import { SearchableSelect } from './searchableSelect'
 
 export const DEMO_OTP = '123456'
-export const ID_ALLOWED_MIME = ['image/jpeg', 'image/png']
+export const ID_ALLOWED_MIME = ['image/jpeg', 'image/png', 'application/pdf']
 export const ID_MAX_SIZE = 5 * 1024 * 1024
 
 export const ID_DOCUMENT_OPTIONS: { type: IdentityDocumentType; label: string }[] = [
@@ -101,7 +101,7 @@ export function ConfirmYourDetails() {
   }
 
   return <main className="report-page">
-    <ProgressSteps current="Review" />
+    <ProgressSteps current="Review / Submit" />
     <div className="report-intro">
       <h1>Confirm your details</h1>
       <p className="lead">These details identify you as the person filing this report.</p>
@@ -207,7 +207,7 @@ export function IdentityDocumentUpload() {
     if (!file || !docType) return
     setDocError(null)
     if (!ID_ALLOWED_MIME.includes(file.type)) {
-      setDocError('That file type isn’t supported. Please upload a JPG, JPEG or PNG.')
+      setDocError('That file type isn’t supported. Please upload a JPG, PNG or PDF.')
       return
     }
     if (file.size > ID_MAX_SIZE) {
@@ -240,10 +240,10 @@ export function IdentityDocumentUpload() {
   }
 
   return <main className="report-page">
-    <ProgressSteps current="Review" />
+    <ProgressSteps current="Review / Submit" />
     <div className="report-intro">
       <h1>Upload an identity document</h1>
-      <p className="lead">Upload one accepted national ID document as a JPG, JPEG or PNG.</p>
+      <p className="lead">Upload one accepted national ID document as a JPG, PNG or PDF.</p>
     </div>
     <form className="review-form" onSubmit={event => event.preventDefault()}>
       <div className="field-grid">
@@ -264,9 +264,9 @@ export function IdentityDocumentUpload() {
         : <>
             <label className="button secondary upload-button">
               Upload identity document
-              <input type="file" accept=".jpg,.jpeg,.png,image/jpeg,image/png" hidden onChange={onFileChosen} disabled={!docType} />
+              <input type="file" accept=".jpg,.jpeg,.png,.pdf,image/jpeg,image/png,application/pdf" hidden onChange={onFileChosen} disabled={!docType} />
             </label>
-            <p className="helper">JPG, JPEG or PNG. Maximum 5 MB. You only need one document.</p>
+            <p className="helper">JPG, PNG or PDF. Maximum 5 MB. You only need one document.</p>
             {docError && <p className="field-error">{docError}</p>}
           </>}
 

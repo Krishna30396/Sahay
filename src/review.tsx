@@ -83,7 +83,7 @@ function VerifyIdentityChooser() {
       return
     }
     if (!ID_ALLOWED_MIME.includes(file.type)) {
-      setError('That file type isn’t supported. Please upload a JPG, JPEG or PNG.')
+      setError('That file type isn’t supported. Please upload a JPG, PNG or PDF.')
       return
     }
     if (file.size > ID_MAX_SIZE) {
@@ -132,7 +132,7 @@ function VerifyIdentityChooser() {
       <span className="verify-option-icon upload"><UploadGlyph /></span>
       <span className="verify-option-body">
         <span className="verify-option-title">Upload a document</span>
-        <span className="verify-option-sub">JPG or PNG · Max 5MB</span>
+        <span className="verify-option-sub">JPG, PNG or PDF · Max 5MB</span>
       </span>
     </label>
 
@@ -153,8 +153,8 @@ function VerifyIdentityChooser() {
         <span className="identity-dropzone-icon" aria-hidden="true"><UploadGlyph /></span>
         <p>Drag and drop your document here or</p>
         <button type="button" className="button secondary" onClick={event => { event.stopPropagation(); fileInputRef.current?.click() }} disabled={!docType}>Choose file</button>
-        <p className="identity-dropzone-hint">JPG or PNG · Max 5MB</p>
-        <input ref={fileInputRef} type="file" accept=".jpg,.jpeg,.png,image/jpeg,image/png" hidden onChange={onFileChosen} />
+        <p className="identity-dropzone-hint">JPG, PNG or PDF · Max 5MB</p>
+        <input ref={fileInputRef} type="file" accept=".jpg,.jpeg,.png,.pdf,image/jpeg,image/png,application/pdf" hidden onChange={onFileChosen} />
       </div>
       {error && <p className="field-error">{error}</p>}
     </div>}
@@ -310,7 +310,7 @@ export function ReportReview() {
   }
 
   return <main className="report-page report-page-wide">
-    <ProgressSteps current="Review" />
+    <ProgressSteps current="Review / Submit" />
     <div className="report-intro">
       <h1>Review your report</h1>
       <p className="lead">Please review all the details before submitting.</p>

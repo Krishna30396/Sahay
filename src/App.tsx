@@ -33,14 +33,14 @@ function iconProps() {
 function MessageIcon() {
   return <svg {...iconProps()}><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8z" /></svg>
 }
-function CheckSquareIcon() {
-  return <svg {...iconProps()}><polyline points="9 11 12 14 22 4" /><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" /></svg>
-}
 function FolderIcon() {
   return <svg {...iconProps()}><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" /></svg>
 }
 function SearchIcon() {
   return <svg {...iconProps()}><circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" /></svg>
+}
+function CircleCheckIcon() {
+  return <svg {...iconProps()}><circle cx="12" cy="12" r="9" /><polyline points="8.5 12.5 11 15 15.5 9" /></svg>
 }
 function ShieldBoltIcon() {
   return <svg {...iconProps()}><path d="M12 3l7 3v6c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6z" /><polyline points="13 8 10 13 13 13 11 17" /></svg>
@@ -70,29 +70,29 @@ const ACT_NOW_STEPS: { image: string; title: string; description: string }[] = [
   { image: '/assets/act-report.png', title: 'Report the incident', description: 'Use this prototype to understand the reporting journey.' },
 ]
 
-const NEXT_STEPS: { icon: () => ReactElement; label: string; tone: 'blue' | 'orange' }[] = [
-  { icon: MessageIcon, label: 'Tell us what happened', tone: 'blue' },
-  { icon: CheckSquareIcon, label: 'Check the details', tone: 'blue' },
-  { icon: FolderIcon, label: 'Add relevant evidence', tone: 'orange' },
-  { icon: SearchIcon, label: 'Review / Submit', tone: 'blue' },
+const NEXT_STEPS: { icon: () => ReactElement; label: string }[] = [
+  { icon: MessageIcon, label: 'Tell us what happened' },
+  { icon: FileTextGlyph, label: 'Check the details' },
+  { icon: FolderIcon, label: 'Add relevant evidence' },
+  { icon: SearchIcon, label: 'Review / Submit when ready' },
 ]
 
 function NextSteps() {
   return <section className="next-steps container">
-    <p className="next-steps-title">What happens next</p>
-    <div className="next-steps-row">
-      {NEXT_STEPS.map((step, index) => {
-        const Icon = step.icon
-        return <div className="next-step" key={step.label}>
-          <span className={`next-step-icon tone-${step.tone}`}>
-            <span className="next-step-num" aria-hidden="true">{index + 1}</span>
-            <Icon />
-          </span>
-          <p>{step.label}</p>
-        </div>
-      })}
+    <div className="next-steps-card">
+      <p className="next-steps-title">What happens next</p>
+      <div className="next-steps-row">
+        {NEXT_STEPS.map((step, index) => {
+          const Icon = step.icon
+          const [firstWord, ...restWords] = step.label.split(' ')
+          return <div className="next-step" key={step.label}>
+            <span className="next-step-icon"><Icon /></span>
+            <p><span className="next-step-num" aria-hidden="true">{index + 1}</span> <strong>{firstWord}</strong> {restWords.join(' ')}</p>
+          </div>
+        })}
+      </div>
+      <p className="next-steps-note"><CircleCheckIcon /> You’ll see everything before anything is submitted.</p>
     </div>
-    <p className="next-steps-pill">✓ You’ll see everything before anything is submitted.</p>
   </section>
 }
 
@@ -116,26 +116,24 @@ function VerifyMobilePanel({ onVerified }: { onVerified: () => void }) {
     return () => clearTimeout(timer)
   }, [step, countdown, onVerified])
 
-  // Demo credential: auto-fill a random 6-digit OTP a few seconds after arriving on
-  // this step, one digit at a time, so the flow is visibly a demo — the user still has
-  // to press "Verify mobile" themselves to continue.
+  // Demo credential: auto-fill a random 6-digit OTP immediately on arriving on this
+  // step, one digit at a time, so the flow is visibly a demo — the user still has to
+  // press "Verify mobile" themselves to continue.
   useEffect(() => {
     if (step !== 'otp' || otpRound === 0) return
     let cancelled = false
     const timers: ReturnType<typeof setTimeout>[] = []
     const demoOtp = Array.from({ length: 6 }, () => String(Math.floor(Math.random() * 10)))
-    timers.push(setTimeout(() => {
-      demoOtp.forEach((digit, index) => {
-        timers.push(setTimeout(() => {
-          if (cancelled) return
-          setOtp(current => {
-            const next = [...current]
-            next[index] = digit
-            return next
-          })
-        }, index * 220))
-      })
-    }, 3500))
+    demoOtp.forEach((digit, index) => {
+      timers.push(setTimeout(() => {
+        if (cancelled) return
+        setOtp(current => {
+          const next = [...current]
+          next[index] = digit
+          return next
+        })
+      }, index * 120))
+    })
     return () => { cancelled = true; timers.forEach(clearTimeout) }
   }, [step, otpRound])
 
@@ -296,6 +294,10 @@ function PrototypeBanner() {
   return <div className="prototype-banner"><b>● &nbsp; PUBLIC SERVICE PROTOTYPE</b><span>•</span><span>Not an official Government of India website</span></div>
 }
 
+function EmergencyBar() {
+  return <div className="emergency-bar"><span aria-hidden="true">⚠</span> If the payment happened just now, call <a href="tel:1930">1930</a> and your bank/payment provider immediately.</div>
+}
+
 function Footer() {
   return <footer><div className="container footer-inner"><div><b>Sahay</b><span>Cyber Fraud Assistance</span></div><div className="footer-links"><a href="https://cybercrime.gov.in" target="_blank" rel="noreferrer">National Cyber Crime Reporting Portal</a><a href="tel:1930">1930</a><Link to="/#help">Help</Link><Link to="/">Accessibility</Link></div><p>Public Service Prototype<br />This prototype is not an official Government of India service and does not submit real complaints.</p></div></footer>
 }
@@ -362,7 +364,7 @@ function Shell() {
   const [modal, setModal] = useState<ModalKind>(null)
   const [menuOpen, setMenuOpen] = useState(false)
   const [verifyTarget, setVerifyTarget] = useState<string | null>(null)
-  const { navigate } = useRouter()
+  const { navigate, path } = useRouter()
 
   const onStartReport = (target: string) => { setVerifyTarget(target); setModal('verify-mobile') }
   const onVerified = () => {
@@ -372,7 +374,7 @@ function Shell() {
 
   return <>
     <Header menuOpen={menuOpen} setMenuOpen={setMenuOpen} />
-    <PrototypeBanner />
+    {path === '/report/assisted' ? <EmergencyBar /> : <PrototypeBanner />}
     <Screens setModal={setModal} onStartReport={onStartReport} />
     <Footer />
     <Modal kind={modal} onClose={() => setModal(null)} onVerified={onVerified} />

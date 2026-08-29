@@ -8,7 +8,7 @@ const Arrow = () => <span aria-hidden="true">→</span>
 
 const StepCheckGlyph = () => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.6} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><polyline points="5 13 10 18 19 7" /></svg>
 
-const STEPS = ['Start', 'Details', 'Evidence', 'Review', 'Submit'] as const
+const STEPS = ['Start', 'Details', 'Evidence', 'Review / Submit'] as const
 type Step = typeof STEPS[number]
 
 export function ProgressSteps({ current }: { current: Step }) {
@@ -51,10 +51,6 @@ export function MissingInfoNote({ missing, onAddDetails }: { missing: string[]; 
   </section>
 }
 
-function SafetyNote() {
-  return <p className="safety-note">If the payment happened just now, call <a href="tel:1930">1930</a> and your bank/payment provider immediately.</p>
-}
-
 export function DescriptionField({ value, onChange, generated }: { value: string; onChange: (value: string) => void; generated?: boolean }) {
   return <div className="description-field-wrap">
     <label className="description-field">Description {generated && <span className="source-tag">Generated from your description</span>}
@@ -89,7 +85,7 @@ function formatTimer(seconds: number) {
 }
 
 function VoiceHeroIllustration() {
-  return <img className="voice-hero-illustration" src="/assets/voice-assisted.png" alt="" aria-hidden="true" />
+  return <img className="voice-hero-illustration" src="/assets/voice-assisted-12.png" alt="" aria-hidden="true" />
 }
 
 function StopGlyph() {
@@ -131,7 +127,7 @@ export function VoiceAssistedEntry({
   processing,
   primaryLabel = 'Save & continue',
   processingLabel = 'Organizing your details…',
-  manualPath,
+  onManual,
   manualDescription = 'Enter the details step by step.',
 }: {
   needed: { heading: string; items: string[] }
@@ -148,7 +144,7 @@ export function VoiceAssistedEntry({
   processing: boolean
   primaryLabel?: string
   processingLabel?: string
-  manualPath: string
+  onManual: () => void
   manualDescription?: string
 }) {
   const speech = useSpeechRecognition(onAppendSpeech)
@@ -214,7 +210,6 @@ export function VoiceAssistedEntry({
                 readOnly={listening}
               />
             </div>
-            {!listening && <button type="button" className="demo-fill-btn" onClick={() => onTextChange(placeholder)}>✨ Use a demo example</button>}
             {speech.state === 'error' && <p className="field-error">{messageForSpeechError(speech.errorCode)}</p>}
             {speech.state === 'unsupported' && <p className="helper">Voice input isn’t supported in this browser. Try Chrome or Edge, or type your description below.</p>}
             <p className="voice-tip">💡 You can review and edit this in the next step.</p>
@@ -227,7 +222,7 @@ export function VoiceAssistedEntry({
             <h2>Prefer to fill it in yourself?</h2>
             <p>{manualDescription}</p>
           </div>
-          <Link className="button secondary" to={manualPath}>Fill manually <Arrow /></Link>
+          <button type="button" className="button secondary" onClick={onManual}>Fill manually <Arrow /></button>
         </section>
       </div>
 
@@ -370,9 +365,13 @@ export function ReportAssisted() {
 
   const appendSpeech = (chunk: string) => setText(current => (current.trim() ? `${current.trim()} ${chunk}` : chunk))
 
+  const goManual = () => {
+    setReport(current => ({ ...current, category: 'financial-fraud', entryMode: 'manual' }))
+    navigate('/report/details')
+  }
+
   return <main className="report-page report-page-wide">
     <ProgressSteps current="Start" />
-    <SafetyNote />
     <VoiceAssistedEntry
       needed={{
         heading: 'What you’ll need',
@@ -394,7 +393,7 @@ export function ReportAssisted() {
       onSubmit={submit}
       canContinue={canContinue}
       processing={processing}
-      manualPath="/report/manual"
+      onManual={goManual}
     />
   </main>
 }
@@ -430,19 +429,6 @@ export function ReportManualEntry() {
 
   const update = <K extends keyof ManualDraft>(key: K, value: ManualDraft[K]) => setDraft(current => ({ ...current, [key]: value }))
 
-  const fillDemo = () => setDraft({
-    merchantName: 'HDFC Bank',
-    transactionId: '412233445566',
-    transactionDate: formatDemoDate(-1),
-    amount: '50000',
-    paymentMethod: 'UPI',
-    date: formatDemoDate(-1),
-    approximateTime: 'evening, around 6 pm',
-    contactMethod: 'Phone call',
-    impersonation: 'Bank / financial institution',
-    description: 'I received a call from someone claiming to be a bank representative and I transferred ₹50,000 via UPI after being asked to share a one-time code that appeared on my phone screen during the call.',
-  })
-
   const submit = () => {
     setReport(current => ({
       ...current,
@@ -473,7 +459,6 @@ export function ReportManualEntry() {
     <div className="report-intro">
       <h1>Enter the details yourself</h1>
       <p className="lead">Fill in what you know. You can leave anything blank and add it later.</p>
-      <button type="button" className="demo-fill-btn" onClick={fillDemo}>✨ Fill demo details</button>
     </div>
     <form className="review-form" onSubmit={event => { event.preventDefault(); submit() }}>
       <section className="required-block">
