@@ -63,6 +63,9 @@ function ShieldCheckGlyph() {
 function ClockGlyph() {
   return <svg {...iconProps()}><circle cx="12" cy="12" r="9" /><polyline points="12 7 12 12 15 14" /></svg>
 }
+function WarningTriangleIcon() {
+  return <svg {...iconProps()}><path d="M12 3.5l9.5 16.5H2.5z" /><line x1="12" y1="9.5" x2="12" y2="13.5" /><circle cx="12" cy="16.6" r=".9" fill="currentColor" stroke="none" /></svg>
+}
 const ACT_NOW_STEPS: { image: string; title: string; description: string }[] = [
   { image: '/assets/act-call.png', title: 'Call 1930', description: 'If money was just transferred, contact the financial-cyber-fraud helpline immediately.' },
   { image: '/assets/act-bank.png', title: 'Contact your bank or payment provider', description: 'Ask about securing the transaction.' },
@@ -295,7 +298,13 @@ function PrototypeBanner() {
 }
 
 function EmergencyBar() {
-  return <div className="emergency-bar"><span aria-hidden="true">⚠</span> If the payment happened just now, call <a href="tel:1930">1930</a> and your bank/payment provider immediately.</div>
+  return <div className="emergency-bar">
+    <span className="emergency-bar-icon" aria-hidden="true"><WarningTriangleIcon /></span>
+    <p className="emergency-bar-message">If money was just transferred<br /><b>Call 1930 immediately.</b></p>
+    <span className="emergency-bar-divider" aria-hidden="true" />
+    <p className="emergency-bar-sub">Contact your bank or payment provider as soon as possible.</p>
+    <a className="button primary emergency-bar-btn" href="tel:1930">Call 1930</a>
+  </div>
 }
 
 function Footer() {

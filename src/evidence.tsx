@@ -4,9 +4,10 @@ import { EvidenceType, ReportCategory, SuspectInfo, useReport } from './reportSt
 import type { EvidenceItem as EvidenceRecord } from './reportState'
 import { ProgressSteps, StepActionBar } from './report'
 import { detailsPath, reviewPath } from './reportRoutes'
+import { isMeaningfulInput } from './validation'
 
-const ALLOWED_MIME = ['image/jpeg', 'image/png', 'application/pdf']
-const MAX_SIZE = 10 * 1024 * 1024
+export const ALLOWED_MIME = ['image/jpeg', 'image/png', 'application/pdf']
+export const MAX_SIZE = 10 * 1024 * 1024
 
 interface SectionConfig {
   type: EvidenceType
@@ -45,7 +46,7 @@ function moveToFront(list: SectionConfig[], type: EvidenceType): SectionConfig[]
   return [item, ...list.filter(s => s.type !== type)]
 }
 
-function sectionsFor(category: ReportCategory, issueType: string | null): SectionConfig[] {
+export function sectionsFor(category: ReportCategory, issueType: string | null): SectionConfig[] {
   if (category === 'account-identity') return ACCOUNT_SECTIONS
   if (category === 'other-cyber') {
     if (issueType === 'Fake profile or impersonation') return moveToFront(OTHER_SECTIONS_BASE, 'profile')
@@ -55,11 +56,11 @@ function sectionsFor(category: ReportCategory, issueType: string | null): Sectio
   return FINANCIAL_SECTIONS
 }
 
-function makeId() {
+export function makeId() {
   return typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `ev-${Date.now()}-${Math.random().toString(36).slice(2)}`
 }
 
-function suggestType(fileName: string, fallback: EvidenceType, available: EvidenceType[]): EvidenceType {
+export function suggestType(fileName: string, fallback: EvidenceType, available: EvidenceType[]): EvidenceType {
   const name = fileName.toLowerCase()
   const pick = (type: EvidenceType) => available.includes(type)
   if (pick('transaction') && /receipt|payment|txn|transaction|upi|paid|debit|credit/.test(name)) return 'transaction'
@@ -260,12 +261,15 @@ function SuspectSection({ suspect, onChange, open, onOpen }: {
     <div className="field-grid">
       <label>Suspect mobile number
         <input ref={firstFieldRef} value={suspect.mobile ?? ''} onChange={e => onChange('mobile', e.target.value || null)} placeholder="Not provided" />
+        {suspect.mobile && !isMeaningfulInput(suspect.mobile) && <span className="detail-field-helper field-error">Enter a valid number, not just symbols.</span>}
       </label>
       <label>Suspect email
         <input value={suspect.email ?? ''} onChange={e => onChange('email', e.target.value || null)} placeholder="Not provided" />
+        {suspect.email && !isMeaningfulInput(suspect.email) && <span className="detail-field-helper field-error">Enter a valid email, not just symbols.</span>}
       </label>
       <label>Suspect bank account
         <input value={suspect.bankAccount ?? ''} onChange={e => onChange('bankAccount', e.target.value || null)} placeholder="Not provided" />
+        {suspect.bankAccount && !isMeaningfulInput(suspect.bankAccount) && <span className="detail-field-helper field-error">Enter a valid bank account, not just symbols.</span>}
       </label>
       <label>Suspect address
         <input value={suspect.address ?? ''} onChange={e => onChange('address', e.target.value || null)} placeholder="Not provided" />
@@ -394,7 +398,6 @@ export function ReportEvidence() {
                   onRemove={() => removeItem(item)}
                 />)}
               </ul>
-              <button type="button" className="link-button add-another-file" onClick={() => fileInputRef.current?.click()}>+ Add another file</button>
             </section>
           : <p className="field-error">Add at least one piece of relevant evidence before continuing.</p>}
 

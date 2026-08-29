@@ -3,7 +3,7 @@ import { useRouter } from './router'
 import { AccountIdentityInfo, OtherIncidentInfo, ReportIncident, useReport } from './reportState'
 import { DescriptionField, IMPERSONATION_OPTIONS, NeededItem, NeededSidebar, ProgressSteps, StepActionBar } from './report'
 import { assistedReviewPath, evidencePath, manualPath, startPath } from './reportRoutes'
-import { financialRequiredErrors } from './validation'
+import { financialRequiredErrors, isMeaningfulInput } from './validation'
 import {
   ACCESS_STATUS_OPTIONS,
   ACCOUNT_PLATFORM_OPTIONS,
@@ -242,6 +242,8 @@ export function ReportDetails() {
                 <input value={report.incident.date ?? ''} onChange={e => updateIncident('date', e.target.value || null)} placeholder="Date not provided" />
                 <input value={report.incident.approximateTime ?? ''} onChange={e => updateIncident('approximateTime', e.target.value || null)} placeholder="Time not provided" />
               </div>
+              {report.incident.date && !isMeaningfulInput(report.incident.date) && <span className="detail-field-helper field-error">Enter a valid date, not just symbols.</span>}
+              {report.incident.approximateTime && !isMeaningfulInput(report.incident.approximateTime) && <span className="detail-field-helper field-error">Enter a valid time, not just symbols.</span>}
             </label>
             {extraFields}
           </div>
@@ -251,7 +253,9 @@ export function ReportDetails() {
             <div className="field-grid">
               <label>Bank / wallet / merchant {isAssisted && report.transaction.merchantName && <SourceTag />}
                 <input value={report.transaction.merchantName ?? ''} onChange={e => updateTransaction('merchantName', e.target.value)} placeholder="e.g. HDFC Bank, Paytm" />
-                {!report.transaction.merchantName && <span className="detail-field-helper field-error">This is required for a financial-fraud complaint.</span>}
+                {!report.transaction.merchantName
+                  ? <span className="detail-field-helper field-error">This is required for a financial-fraud complaint.</span>
+                  : !isMeaningfulInput(report.transaction.merchantName) && <span className="detail-field-helper field-error">Enter a valid bank or merchant name, not just symbols.</span>}
               </label>
               <label>Transaction / UTR number (if available) {isAssisted && report.transaction.transactionId && <SourceTag />}
                 <input value={report.transaction.transactionId ?? ''} onChange={e => updateTransaction('transactionId', e.target.value)} placeholder="12-digit UTR" />
@@ -259,7 +263,9 @@ export function ReportDetails() {
               </label>
               <label>Transaction date
                 <input value={report.transaction.transactionDate ?? ''} onChange={e => updateTransaction('transactionDate', e.target.value)} placeholder="e.g. 24 August 2026" />
-                {!report.transaction.transactionDate && <span className="detail-field-helper field-error">This is required for a financial-fraud complaint.</span>}
+                {!report.transaction.transactionDate
+                  ? <span className="detail-field-helper field-error">This is required for a financial-fraud complaint.</span>
+                  : !isMeaningfulInput(report.transaction.transactionDate) && <span className="detail-field-helper field-error">Enter a valid date, not just symbols.</span>}
               </label>
             </div>
           </>}

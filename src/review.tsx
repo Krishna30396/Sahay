@@ -1,10 +1,18 @@
-import { ChangeEvent, DragEvent, ReactNode, useRef, useState } from 'react'
+import { ChangeEvent, DragEvent, ReactNode, useEffect, useRef, useState } from 'react'
 import { useRouter } from './router'
-import { IdentityDocumentType, useReport } from './reportState'
+import { AccountIdentityInfo, EvidenceItem as EvidenceRecord, IdentityDocumentType, OtherIncidentInfo, ReportIncident, useReport } from './reportState'
 import { MissingInfoNote, ProgressSteps, StepActionBar } from './report'
 import { detailsPath, evidencePath, submissionPath } from './reportRoutes'
 import { DEMO_OTP, ID_ALLOWED_MIME, ID_DOCUMENT_LABELS, ID_DOCUMENT_OPTIONS, ID_MAX_SIZE, INDIAN_STATES } from './identity'
 import { SearchableSelect } from './searchableSelect'
+import { ALLOWED_MIME, MAX_SIZE, makeId, sectionsFor, suggestType } from './evidence'
+import { financialRequiredErrors, isMeaningfulInput } from './validation'
+import {
+  accountMisuseFieldLabel,
+  accountPlatformFieldLabel,
+  accountShowsAccess,
+  accountShowsMisuse,
+} from './categoryLabels'
 
 function formatAmount(amount: number | null) {
   return amount != null ? `₹${amount.toLocaleString('en-IN')}` : 'Not provided yet'
@@ -75,13 +83,11 @@ function VerifyIdentityChooser() {
   const openUpload = () => {
     setError(null)
     setUploadOpen(true)
+    setDocType(current => current || ID_DOCUMENT_OPTIONS[0]?.type || '')
   }
 
   const acceptFile = (file: File) => {
-    if (!docType) {
-      setError('Choose a document type first.')
-      return
-    }
+    const chosenType = docType || ID_DOCUMENT_OPTIONS[0]?.type || ''
     if (!ID_ALLOWED_MIME.includes(file.type)) {
       setError('That file type isn’t supported. Please upload a JPG, PNG or PDF.')
       return
@@ -91,14 +97,26 @@ function VerifyIdentityChooser() {
       return
     }
     setError(null)
+    if (!docType) setDocType(chosenType)
     setReport(current => ({
       ...current,
       complainant: {
         ...current.complainant,
         identityMethod: 'manual-upload',
-        identityDocument: { type: docType, issuer: null, fileName: file.name, fileSize: file.size, mimeType: file.type, uploaded: true, source: 'manual-upload', status: 'demo-verified' },
+        identityDocument: { type: chosenType, issuer: null, fileName: file.name, fileSize: file.size, mimeType: file.type, uploaded: true, source: 'manual-upload', status: 'verifying' },
       },
     }))
+    setTimeout(() => {
+      setReport(current => ({
+        ...current,
+        complainant: {
+          ...current.complainant,
+          name: current.complainant.name || 'Priya Sharma',
+          state: current.complainant.state || 'Maharashtra',
+          identityDocument: { ...current.complainant.identityDocument, status: 'demo-verified' },
+        },
+      }))
+    }, 900)
   }
 
   const onFileChosen = (event: ChangeEvent<HTMLInputElement>) => {
@@ -123,7 +141,7 @@ function VerifyIdentityChooser() {
       <span className="verify-option-icon digilocker"><DigiLockerGlyph /></span>
       <span className="verify-option-body">
         <span className="verify-option-title">Use DigiLocker</span>
-        <span className="verify-option-sub">{connecting ? 'Connecting…' : 'Fetch a government-issued document securely'}</span>
+        <span className="verify-option-sub">{connecting ? <><span className="spinner" aria-hidden="true" /> Connecting…</> : 'Fetch a government-issued document securely'}</span>
       </span>
     </label>
 
@@ -145,30 +163,42 @@ function VerifyIdentityChooser() {
       </label>
       <div
         className={`identity-dropzone${dragActive ? ' drag-active' : ''}`}
-        onClick={() => docType && fileInputRef.current?.click()}
+        onClick={() => fileInputRef.current?.click()}
         onDragOver={event => { event.preventDefault(); setDragActive(true) }}
         onDragLeave={() => setDragActive(false)}
         onDrop={onDrop}
       >
         <span className="identity-dropzone-icon" aria-hidden="true"><UploadGlyph /></span>
         <p>Drag and drop your document here or</p>
-        <button type="button" className="button secondary" onClick={event => { event.stopPropagation(); fileInputRef.current?.click() }} disabled={!docType}>Choose file</button>
+        <button type="button" className="button secondary" onClick={event => { event.stopPropagation(); fileInputRef.current?.click() }}>Choose file</button>
         <p className="identity-dropzone-hint">JPG, PNG or PDF · Max 5MB</p>
         <input ref={fileInputRef} type="file" accept=".jpg,.jpeg,.png,.pdf,image/jpeg,image/png,application/pdf" hidden onChange={onFileChosen} />
       </div>
       {error && <p className="field-error">{error}</p>}
+      {method === 'manual-upload' && report.complainant.identityDocument.fileName && <div className="manual-upload-summary-card">
+        <span className="manual-upload-summary-icon" aria-hidden="true"><FileGlyph /></span>
+        <div className="manual-upload-summary-body">
+          <p className="manual-upload-summary-name">{report.complainant.identityDocument.fileName}</p>
+          {report.complainant.identityDocument.status === 'verifying'
+            ? <span className="verifying-note"><span className="spinner" aria-hidden="true" /> Verifying…</span>
+            : <span className="verified-pill">✓ Verified</span>}
+        </div>
+      </div>}
     </div>}
 
     <p className="verify-identity-note"><ShieldGlyph /> Documents are secure and only used for this report.</p>
   </div>
 }
 
-function ReviewField({ icon, label, value }: { icon: ReactNode; label: string; value: ReactNode }) {
+function ReviewField({ icon, label, value, editing, editor, error }: { icon: ReactNode; label: string; value: ReactNode; editing?: boolean; editor?: ReactNode; error?: ReactNode }) {
   return <div className="review-field">
     <span className="review-field-icon">{icon}</span>
     <div className="review-field-body">
       <p className="review-field-label">{label}</p>
-      <p className="review-field-value">{value}</p>
+      {editing && editor
+        ? <div className="review-field-value">{editor}</div>
+        : <p className={`review-field-value${error ? ' field-error' : ''}`}>{error || value}</p>}
+      {editing && error && <p className="detail-field-helper field-error">{error}</p>}
     </div>
   </div>
 }
@@ -221,6 +251,50 @@ export function ReportReview() {
 
   const removeEvidence = (id: string) => setReport(current => ({ ...current, evidence: current.evidence.filter(item => item.id !== id) }))
 
+  const [editingEvidence, setEditingEvidence] = useState(false)
+  const [evidenceError, setEvidenceError] = useState<string | null>(null)
+  const evidenceFileInputRef = useRef<HTMLInputElement>(null)
+  const evidenceIssueType = category === 'other-cyber' ? report.otherIncident.issueType : null
+  const evidenceFileTypes = sectionsFor(category, evidenceIssueType).filter(s => s.mode === 'file').map(s => s.type)
+
+  const addEvidenceFiles = (files: FileList | File[]) => {
+    const list = Array.from(files)
+    if (list.length === 0) return
+    setEvidenceError(null)
+    for (const file of list) {
+      if (!ALLOWED_MIME.includes(file.type)) {
+        setEvidenceError('That file type isn’t supported. Please add a JPG, PNG or PDF.')
+        continue
+      }
+      if (file.size > MAX_SIZE) {
+        setEvidenceError('That file is larger than 10MB. Please add a smaller file.')
+        continue
+      }
+      const previewUrl = file.type.startsWith('image/') ? URL.createObjectURL(file) : undefined
+      const type = suggestType(file.name, evidenceFileTypes[0] ?? 'other', evidenceFileTypes)
+      const item: EvidenceRecord = { id: makeId(), type, fileName: file.name, mimeType: file.type, size: file.size, previewUrl, source: 'ai-suggested', confirmed: true }
+      setReport(current => ({ ...current, evidence: [...current.evidence, item] }))
+    }
+  }
+
+  const onEvidenceFileChosen = (event: ChangeEvent<HTMLInputElement>) => {
+    if (event.target.files) addEvidenceFiles(event.target.files)
+    event.target.value = ''
+  }
+
+  const updateIncident = <K extends keyof ReportIncident>(key: K, value: ReportIncident[K]) =>
+    setReport(current => ({ ...current, incident: { ...current.incident, [key]: value } }))
+
+  const updateTransaction = (key: 'transactionId' | 'merchantName' | 'transactionDate', value: string) =>
+    setReport(current => ({ ...current, transaction: { ...current.transaction, [key]: value || null } }))
+
+  const updateAccount = <K extends keyof AccountIdentityInfo>(key: K, value: AccountIdentityInfo[K]) =>
+    setReport(current => ({ ...current, accountIdentity: { ...current.accountIdentity, [key]: value } }))
+
+  const updateOther = <K extends keyof OtherIncidentInfo>(key: K, value: OtherIncidentInfo[K]) =>
+    setReport(current => ({ ...current, otherIncident: { ...current.otherIncident, [key]: value } }))
+
+  const [editingReportDetails, setEditingReportDetails] = useState(false)
   const [editingDetails, setEditingDetails] = useState(false)
   const [name, setName] = useState(report.complainant.name ?? '')
   const [mobile, setMobile] = useState(report.complainant.mobile ?? '')
@@ -229,6 +303,12 @@ export function ReportReview() {
   const [otpError, setOtpError] = useState<string | null>(null)
   const mobileVerified = report.complainant.mobileVerified
   const mobileValid = /^\d{10}$/.test(mobile)
+
+  useEffect(() => {
+    if (editingDetails) return
+    setName(report.complainant.name ?? '')
+    setMobile(report.complainant.mobile ?? '')
+  }, [report.complainant.name, report.complainant.mobile, editingDetails])
 
   const updateName = (value: string) => {
     setName(value)
@@ -272,40 +352,81 @@ export function ReportReview() {
 
   const whenText = [report.incident.date, report.incident.approximateTime].filter(Boolean).join(', ') || 'Not provided yet'
 
-  const detailFields: [ReactNode, string, ReactNode][] = [
+  const whenEditor = <div className="field-split">
+    <input className="review-field-value-input" value={report.incident.date ?? ''} onChange={e => updateIncident('date', e.target.value || null)} placeholder="Not provided yet" />
+    <input className="review-field-value-input" value={report.incident.approximateTime ?? ''} onChange={e => updateIncident('approximateTime', e.target.value || null)} placeholder="Not provided yet" />
+  </div>
+
+  const amountError = report.incident.amount == null || report.incident.amount <= 0
+    ? 'This is required for a financial-fraud complaint.' : null
+  const merchantError = !report.transaction.merchantName
+    ? 'This is required for a financial-fraud complaint.'
+    : !isMeaningfulInput(report.transaction.merchantName) ? 'Enter a valid bank or merchant name, not just symbols.' : null
+  const transactionIdError = !report.transaction.transactionId || !/^\d{12}$/.test(report.transaction.transactionId)
+    ? 'Must be exactly 12 digits.' : null
+  const transactionDateError = !report.transaction.transactionDate
+    ? 'This is required for a financial-fraud complaint.'
+    : !isMeaningfulInput(report.transaction.transactionDate) ? 'Enter a valid date, not just symbols.' : null
+
+  const detailFields: [ReactNode, string, ReactNode, ReactNode?, ReactNode?][] = [
     [<ShieldGlyph />, typeLabel, typeValue],
   ]
 
   if (isFinancial) {
     detailFields.push(
-      [<PhoneGlyph />, 'How were you contacted?', report.incident.contactMethod ?? 'Not provided yet'],
-      [<RupeeGlyph />, 'Amount involved', formatAmount(report.incident.amount)],
-      [<BankGlyph />, 'Claimed to represent', report.incident.impersonation ?? 'Not provided yet'],
-      [<CardGlyph />, 'Payment method', report.incident.paymentMethod ?? 'Not provided yet'],
-      [<BankGlyph />, 'Bank / wallet / merchant', report.transaction.merchantName ?? 'Not provided yet'],
-      [<CalendarGlyph />, 'When did it happen?', whenText],
-      [<ReceiptGlyph />, 'Transaction / UTR number', report.transaction.transactionId ?? 'Not provided yet'],
+      [<PhoneGlyph />, 'How were you contacted?', report.incident.contactMethod ?? 'Not provided yet',
+        <input className="review-field-value-input" value={report.incident.contactMethod ?? ''} onChange={e => updateIncident('contactMethod', e.target.value || null)} placeholder="Not provided yet" />],
+      [<RupeeGlyph />, 'Amount involved', formatAmount(report.incident.amount),
+        <input className="review-field-value-input" inputMode="numeric" type="number" value={report.incident.amount ?? ''} onChange={e => updateIncident('amount', e.target.value ? Number(e.target.value) : null)} placeholder="0" />,
+        amountError],
+      [<BankGlyph />, 'Claimed to represent', report.incident.impersonation ?? 'Not provided yet',
+        <input className="review-field-value-input" value={report.incident.impersonation ?? ''} onChange={e => updateIncident('impersonation', e.target.value || null)} placeholder="Not applicable" />],
+      [<CardGlyph />, 'Payment method', report.incident.paymentMethod ?? 'Not provided yet',
+        <input className="review-field-value-input" value={report.incident.paymentMethod ?? ''} onChange={e => updateIncident('paymentMethod', e.target.value || null)} placeholder="Not provided yet" />],
+      [<BankGlyph />, 'Bank / wallet / merchant', report.transaction.merchantName ?? 'Not provided yet',
+        <input className="review-field-value-input" value={report.transaction.merchantName ?? ''} onChange={e => updateTransaction('merchantName', e.target.value)} placeholder="e.g. HDFC Bank, Paytm" />,
+        merchantError],
+      [<CalendarGlyph />, 'When did it happen?', whenText, whenEditor],
+      [<ReceiptGlyph />, 'Transaction / UTR number', report.transaction.transactionId ?? 'Not provided yet',
+        <input className="review-field-value-input" value={report.transaction.transactionId ?? ''} onChange={e => updateTransaction('transactionId', e.target.value)} placeholder="12-digit UTR" />,
+        transactionIdError],
+      [<CalendarGlyph />, 'Transaction date', report.transaction.transactionDate ?? 'Not provided yet',
+        <input className="review-field-value-input" value={report.transaction.transactionDate ?? ''} onChange={e => updateTransaction('transactionDate', e.target.value)} placeholder="e.g. 24 August 2026" />,
+        transactionDateError],
     )
   } else if (isAccount) {
+    const affectedType = report.accountIdentity.affectedType
     detailFields.push(
-      [<CardGlyph />, 'Platform', report.accountIdentity.accountPlatform ?? 'Not provided yet'],
-      [<ShieldCheckGlyph />, 'Access status', report.accountIdentity.accessStatus ?? 'Not provided yet'],
-      [<PhoneGlyph />, 'How it was discovered', report.accountIdentity.misuseType ?? 'Not provided yet'],
-      [<CalendarGlyph />, 'When did it happen?', whenText],
+      [<CardGlyph />, accountPlatformFieldLabel(affectedType), report.accountIdentity.accountPlatform ?? 'Not provided yet',
+        <input className="review-field-value-input" value={report.accountIdentity.accountPlatform ?? ''} onChange={e => updateAccount('accountPlatform', e.target.value || null)} placeholder="Not provided yet" />],
     )
+    if (accountShowsAccess(affectedType)) {
+      detailFields.push([<ShieldCheckGlyph />, 'Access status', report.accountIdentity.accessStatus ?? 'Not provided yet',
+        <input className="review-field-value-input" value={report.accountIdentity.accessStatus ?? ''} onChange={e => updateAccount('accessStatus', e.target.value || null)} placeholder="Not provided yet" />])
+    }
+    if (accountShowsMisuse(affectedType)) {
+      detailFields.push([<PhoneGlyph />, accountMisuseFieldLabel(affectedType), report.accountIdentity.misuseType ?? 'Not provided yet',
+        <input className="review-field-value-input" value={report.accountIdentity.misuseType ?? ''} onChange={e => updateAccount('misuseType', e.target.value || null)} placeholder="Not provided yet" />])
+    }
+    detailFields.push([<CalendarGlyph />, 'When did it happen?', whenText, whenEditor])
   } else {
     detailFields.push(
-      [<CardGlyph />, 'Platform', report.otherIncident.platform ?? 'Not provided yet'],
-      [<PhoneGlyph />, 'Profile, account or link', report.otherIncident.personOrAccountIdentifier ?? 'Not provided yet'],
-      [<CalendarGlyph />, 'When did it happen?', whenText],
+      [<CardGlyph />, 'Platform', report.otherIncident.platform ?? 'Not provided yet',
+        <input className="review-field-value-input" value={report.otherIncident.platform ?? ''} onChange={e => updateOther('platform', e.target.value || null)} placeholder="Not provided yet" />],
+      [<PhoneGlyph />, 'Profile, account or link', report.otherIncident.personOrAccountIdentifier ?? 'Not provided yet',
+        <input className="review-field-value-input" value={report.otherIncident.personOrAccountIdentifier ?? ''} onChange={e => updateOther('personOrAccountIdentifier', e.target.value || null)} placeholder="Not provided yet" />],
+      [<CalendarGlyph />, 'When did it happen?', whenText, whenEditor],
     )
   }
 
-  const docUploaded = report.complainant.identityDocument.uploaded
+  const docVerifying = report.complainant.identityDocument.status === 'verifying'
+  const docUploaded = report.complainant.identityDocument.uploaded && !docVerifying
   const identityComplete = !!report.complainant.name && report.complainant.mobileVerified && !!report.complainant.state && docUploaded
+  const financialErrors = isFinancial ? financialRequiredErrors(report) : []
+  const canSubmit = identityComplete && financialErrors.length === 0
 
   const submit = () => {
-    if (!identityComplete) return
+    if (!canSubmit) return
     navigate(submissionPath(category))
   }
 
@@ -321,18 +442,17 @@ export function ReportReview() {
         <section className="review-card">
           <div className="review-card-head">
             <h2>Report details</h2>
-            <button type="button" className="link-button" onClick={editDetails}>Edit</button>
+            <button type="button" className="link-button" onClick={() => setEditingReportDetails(value => !value)}>{editingReportDetails ? 'Done' : 'Edit'}</button>
           </div>
           <div className="review-grid">
-            {detailFields.map(([icon, label, value]) => <ReviewField key={label} icon={icon} label={label} value={value} />)}
+            {detailFields.map(([icon, label, value, editor, error]) => <ReviewField key={label} icon={icon} label={label} value={value} editing={editingReportDetails} editor={editor} error={error} />)}
           </div>
-          <p className="review-description">{report.incident.description || 'Not provided yet'}</p>
         </section>
 
         <section className="review-card">
           <div className="review-card-head">
             <h2>Evidence ({report.evidence.length})</h2>
-            <button type="button" className="link-button" onClick={editEvidence}>Edit</button>
+            <button type="button" className="link-button" onClick={() => setEditingEvidence(value => !value)}>{editingEvidence ? 'Done' : 'Edit'}</button>
           </div>
           {report.evidence.length === 0
             ? <p className="review-description">No evidence added.</p>
@@ -345,10 +465,15 @@ export function ReportReview() {
                       <p className="evidence-review-name">{item.fileName ?? item.description ?? 'Evidence item'}</p>
                       {size && <p className="evidence-review-size">{size}</p>}
                     </div>
-                    <button type="button" className="evidence-review-remove" onClick={() => removeEvidence(item.id)} aria-label="Remove evidence"><TrashGlyph /></button>
+                    {editingEvidence && <button type="button" className="evidence-review-remove" onClick={() => removeEvidence(item.id)} aria-label="Remove evidence"><TrashGlyph /></button>}
                   </li>
                 })}
               </ul>}
+          {editingEvidence && <div className="evidence-review-add">
+            <button type="button" className="button secondary small" onClick={() => evidenceFileInputRef.current?.click()}>+ Add evidence</button>
+            <input ref={evidenceFileInputRef} type="file" multiple accept=".jpg,.jpeg,.png,.pdf,image/jpeg,image/png,application/pdf" hidden onChange={onEvidenceFileChosen} />
+            {evidenceError && <p className="field-error">{evidenceError}</p>}
+          </div>}
         </section>
 
         <SuspectReviewSection report={report} onEdit={editEvidence} />
@@ -425,21 +550,21 @@ export function ReportReview() {
 
         <div className="your-details-row your-details-identity">
           <span className="your-details-icon"><FileGlyph /></span>
-          <span className="your-details-label">Identity document</span>
+          <span className="your-details-label">{docUploaded ? (ID_DOCUMENT_LABELS[report.complainant.identityDocument.type ?? ''] ?? 'Identity document') : 'Identity document'}</span>
           <span className="your-details-value">
-            {docUploaded
-              ? <span className="verified-note">✓ Added via {report.complainant.identityMethod === 'digilocker' ? 'DigiLocker' : 'upload'}</span>
-              : 'Not added yet'}
+            {docVerifying
+              ? <span className="verifying-note"><span className="spinner" aria-hidden="true" /> Verifying…</span>
+              : docUploaded
+                ? <span className="verified-note">✓ Added via {report.complainant.identityMethod === 'digilocker' ? 'DigiLocker' : 'upload'}</span>
+                : 'Not added yet'}
           </span>
         </div>
 
         {docUploaded && report.complainant.identityMethod === 'digilocker' && <div className="digilocker-summary-card">
           <span className="digilocker-summary-badge"><span className="digilocker-summary-icon"><DigiLockerGlyph /></span> DigiLocker <span className="verified-pill">Verified</span></span>
           <p className="helper">Document fetched securely from DigiLocker</p>
-          <p className="review-field-value">Document type: {ID_DOCUMENT_LABELS[report.complainant.identityDocument.type ?? ''] ?? 'Document'}</p>
           {report.complainant.identityDocument.issuer && <p className="review-field-value">Issuer: {report.complainant.identityDocument.issuer}</p>}
         </div>}
-        {docUploaded && report.complainant.identityMethod !== 'digilocker' && <p className="review-field-value your-details-doc-type">{ID_DOCUMENT_LABELS[report.complainant.identityDocument.type ?? ''] ?? 'Document'}</p>}
         {docUploaded && <button type="button" className="link-button" onClick={editIdentity}>Change document</button>}
 
         <VerifyIdentityChooser />
@@ -451,11 +576,14 @@ export function ReportReview() {
       </aside>
     </div>
 
+    {financialErrors.length > 0 && <p className="field-error submit-blocked-note">Complete the required financial-fraud fields above before submitting.</p>}
+    {financialErrors.length === 0 && !identityComplete && <p className="field-error submit-blocked-note">Complete your name, verified mobile number, state and identity document before submitting.</p>}
+
     <StepActionBar
       onBack={editEvidence}
       primaryLabel="Confirm & submit"
       onPrimary={submit}
-      primaryDisabled={!identityComplete}
+      primaryDisabled={!canSubmit}
       note="You can go back and edit any information if needed."
     />
   </main>

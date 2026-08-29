@@ -62,7 +62,7 @@ export interface IdentityDocument {
   mimeType: string | null
   uploaded: boolean
   source: IdentitySource | null
-  status: 'not-provided' | 'demo-verified' | null
+  status: 'not-provided' | 'verifying' | 'demo-verified' | null
 }
 
 export interface ComplainantInfo {
