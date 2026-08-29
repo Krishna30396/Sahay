@@ -22,7 +22,7 @@ function HeroArtwork() {
 }
 
 function CardIllustration({ type }: { type: 'money' | 'identity' | 'other' }) {
-  const images = { money: '/assets/money-fraud.png', identity: '/assets/identity-misuse.png', other: '/assets/other-cyber-issue.png' }
+  const images = { money: '/assets/money-fraud-16.png', identity: '/assets/identity-misuse.png', other: '/assets/other-cyber-issue-15.png' }
   return <div className="card-art" aria-hidden="true"><img src={images[type]} alt="" /></div>
 }
 
@@ -30,12 +30,6 @@ function iconProps() {
   return { viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 1.8, strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const, 'aria-hidden': true }
 }
 
-function MessageIcon() {
-  return <svg {...iconProps()}><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8z" /></svg>
-}
-function FolderIcon() {
-  return <svg {...iconProps()}><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" /></svg>
-}
 function SearchIcon() {
   return <svg {...iconProps()}><circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" /></svg>
 }
@@ -66,6 +60,12 @@ function ClockGlyph() {
 function WarningTriangleIcon() {
   return <svg {...iconProps()}><path d="M12 3.5l9.5 16.5H2.5z" /><line x1="12" y1="9.5" x2="12" y2="13.5" /><circle cx="12" cy="16.6" r=".9" fill="currentColor" stroke="none" /></svg>
 }
+function StepShieldIcon() {
+  return <svg {...iconProps()}><path d="M12 3l7 3v6c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6z" /></svg>
+}
+function BellIcon() {
+  return <svg {...iconProps()}><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9" /><path d="M13.7 21a2 2 0 0 1-3.4 0" /></svg>
+}
 const ACT_NOW_STEPS: { image: string; title: string; description: string }[] = [
   { image: '/assets/act-call.png', title: 'Call 1930', description: 'If money was just transferred, contact the financial-cyber-fraud helpline immediately.' },
   { image: '/assets/act-bank.png', title: 'Contact your bank or payment provider', description: 'Ask about securing the transaction.' },
@@ -73,11 +73,11 @@ const ACT_NOW_STEPS: { image: string; title: string; description: string }[] = [
   { image: '/assets/act-report.png', title: 'Report the incident', description: 'Use this prototype to understand the reporting journey.' },
 ]
 
-const NEXT_STEPS: { icon: () => ReactElement; label: string }[] = [
-  { icon: MessageIcon, label: 'Tell us what happened' },
-  { icon: FileTextGlyph, label: 'Check the details' },
-  { icon: FolderIcon, label: 'Add relevant evidence' },
-  { icon: SearchIcon, label: 'Review / Submit when ready' },
+const NEXT_STEPS: { icon: () => ReactElement; title: string; description: [string, string] }[] = [
+  { icon: PencilGlyph, title: 'Report', description: ['Share what happened in', 'your own words.'] },
+  { icon: SearchIcon, title: 'We review', description: ['We’ll review your report', 'and collect details.'] },
+  { icon: StepShieldIcon, title: 'Action', description: ['Your report is sent', 'to the appropriate authority.'] },
+  { icon: BellIcon, title: 'Updates', description: ['We’ll keep you informed', 'on your report status.'] },
 ]
 
 function NextSteps() {
@@ -87,10 +87,12 @@ function NextSteps() {
       <div className="next-steps-row">
         {NEXT_STEPS.map((step, index) => {
           const Icon = step.icon
-          const [firstWord, ...restWords] = step.label.split(' ')
-          return <div className="next-step" key={step.label}>
+          return <div className="next-step" key={step.title}>
             <span className="next-step-icon"><Icon /></span>
-            <p><span className="next-step-num" aria-hidden="true">{index + 1}</span> <strong>{firstWord}</strong> {restWords.join(' ')}</p>
+            <div className="next-step-body">
+              <p className="next-step-title-line">{index + 1}. {step.title}</p>
+              <p className="next-step-desc">{step.description[0]}<br />{step.description[1]}</p>
+            </div>
           </div>
         })}
       </div>
@@ -320,7 +322,14 @@ function Landing({ setModal, onStartReport }: { setModal: (kind: ModalKind) => v
         <article className="service-card other wide"><CardIllustration type="other" /><div><h2>Something else happened online</h2><p>Harassment, threats, fake profiles or another cyber issue.</p><button type="button" onClick={() => onStartReport('/report/other/assisted')}>Find the right service <Arrow /></button></div></article>
       </div>
     </section>
-    <section className="emergency"><div className="container emergency-inner"><div><p className="eyebrow">IF MONEY WAS JUST TRANSFERRED</p><h2>Call 1930 immediately.</h2><p>If you have just experienced financial cyber fraud, contact 1930 and your bank or payment provider as soon as possible.</p></div><div className="actions"><a className="button primary" href="tel:1930">Call 1930</a><button className="text-link" onClick={() => setModal('steps')}>What should I do first? <Arrow /></button></div></div></section>
+    <section className="emergency"><div className="container emergency-inner">
+      <div className="emergency-message">
+        <span className="emergency-icon" aria-hidden="true"><WarningTriangleIcon /></span>
+        <div className="emergency-text"><p className="emergency-line1">If money was just transferred</p><h2>Call 1930 immediately.</h2></div>
+        <p className="emergency-sub">Contact your bank or payment provider<br />as soon as possible.</p>
+      </div>
+      <div className="actions"><a className="button primary" href="tel:1930">Call 1930</a><button className="text-link" onClick={() => setModal('steps')}>What should I do first? <Arrow /></button></div>
+    </div></section>
     <NextSteps />
     <section className="track container"><div><h2>Already reported?</h2><p>Check your report and understand what happens next.</p></div><Link className="button secondary" to="/track">Track a report <Arrow /></Link></section>
     <section className="help container" id="help"><h2>Need help?</h2><div className="help-grid"><button onClick={() => setModal('info')}>What information should I keep? <Arrow /></button><button onClick={() => setModal('steps')}>What should I do immediately? <Arrow /></button><button onClick={() => setModal('info')}>What happens to my report? <Arrow /></button></div></section>
